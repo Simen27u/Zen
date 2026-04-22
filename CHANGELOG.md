@@ -1,5 +1,9 @@
 # Changelog
 
+## DEV 1.12 - Mobile browser spacing
+
+- Lot Zen scrolle vertikalt på mobil i stedet for å klippe innhold når siden er høyere enn skjermen.
+- La til ekstra bunnluft på mobil slik at nettleserens adressefelt ikke dekker dagskort og footer.
 ## DEV 1.11 - Mobile viewport polish
 
 - La til mobil `theme-color` og `viewport-fit=cover` for roligere overgang mot telefonens toppfelt.

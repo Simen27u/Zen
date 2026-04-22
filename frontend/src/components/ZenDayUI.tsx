@@ -227,12 +227,12 @@ export default function ZenDayUI() {
 
   return (
     <div
-      className="relative min-h-[100svh] overflow-hidden text-white transition-[background] duration-[12000ms] ease-linear"
+      className="relative min-h-[100svh] overflow-x-hidden text-white transition-[background] duration-[12000ms] ease-linear"
       style={{ background: palette.background }}
     >
       <AmbientBackdrop palette={palette} scene={scene} />
 
-      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col px-5 pb-6 pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 lg:px-10 lg:py-9">
+      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col px-5 pb-[max(7rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 sm:pb-8 lg:px-10 lg:py-9">
         <div className="flex flex-1 flex-col justify-center lg:pb-12">
         <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 lg:pt-4">
