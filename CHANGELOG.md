@@ -1,5 +1,9 @@
 # Changelog
 
+## DEV 1.10 - Location fallback polish
+
+- La til Vossevangen som kjent sted, slik at live-backend kan vise et bedre navn når reverse geocoding ikke svarer.
+- Beholder ekte værdata fra koordinatene selv når stedsnavn må falle tilbake til lokal stedsliste.
 ## DEV 1.9 - Live backend connection
 
 - Gjorde frontend klar til å bruke en ekstern vær-backend via `VITE_WEATHER_URL`.

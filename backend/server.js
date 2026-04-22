@@ -147,6 +147,7 @@ function findKnownNearbyPlace(lat, lon, maxDistanceKm) {
     { name: "Eidsvoll", lat: 60.3306, lon: 11.2616 },
     { name: "Sørumsand", lat: 59.987, lon: 11.24 },
     { name: "Fetsund", lat: 59.929, lon: 11.162 },
+    { name: "Vossevangen", lat: 60.6297, lon: 6.4147 },
   ];
 
   const nearest = places
