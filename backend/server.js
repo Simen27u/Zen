@@ -1,15 +1,23 @@
 import express from "express";
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 const MET_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse";
 const USER_AGENT = "Zen local development weather guide (contact: local@example.com)";
 const cache = new Map();
 const CACHE_MS = 10 * 60 * 1000;
 
+const allowedOrigins = new Set([
+  "http://localhost:3000",
+  "https://simen27u.github.io",
+]);
+
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") {
