@@ -1,5 +1,10 @@
 ﻿# Changelog
 
+## DEV 1.8 - GitHub Pages deploy
+
+- La til GitHub Actions-workflow for å bygge og publisere frontend til GitHub Pages.
+- Satte Vite-base til `/Zen/` når appen bygges for GitHub Pages.
+- Beholder lokal utvikling på vanlig `/`, slik at `start-dev.ps1` fortsatt fungerer lokalt.
 ## DEV 1.7 - Layout balance polish
 
 - Balanserte øvre sone med hilsen, klokke, Nå-panel og område/vær-panel.
