@@ -1,0 +1,180 @@
+import express from "express";
+
+const app = express();
+const PORT = 3001;
+const MET_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact";
+const USER_AGENT = "Zen local development weather guide (contact: local@example.com)";
+const cache = new Map();
+const CACHE_MS = 10 * 60 * 1000;
+
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
+
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
+app.get("/api/weather", async (req, res) => {
+  try {
+    const lat = Number(req.query.lat);
+    const lon = Number(req.query.lon);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      res.status(400).json({ error: "lat og lon må være gyldige tall" });
+      return;
+    }
+
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      res.status(400).json({ error: "lat eller lon er utenfor gyldig område" });
+      return;
+    }
+
+    const roundedLat = roundCoordinate(lat);
+    const roundedLon = roundCoordinate(lon);
+    const cacheKey = `${roundedLat},${roundedLon}`;
+    const cached = cache.get(cacheKey);
+
+    if (cached && Date.now() - cached.createdAt < CACHE_MS) {
+      res.json(cached.payload);
+      return;
+    }
+
+    const url = `${MET_URL}?lat=${roundedLat}&lon=${roundedLon}`;
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`MET svarte med ${response.status}`);
+    }
+
+    const data = await response.json();
+    const current = data?.properties?.timeseries?.[0]?.data;
+    const details = current?.instant?.details;
+    const temperature = normalizeTemperature(details?.air_temperature);
+    const symbolCode = findSymbolCode(current);
+    const vibe = buildVibe(symbolCode, temperature);
+    const text = buildWeatherText(temperature, symbolCode, vibe);
+
+    const payload = {
+      weather: {
+        temperature,
+        symbolCode,
+        vibe,
+        text,
+      },
+      meta: {
+        locationName: buildLocationName(roundedLat, roundedLon),
+      },
+    };
+
+    cache.set(cacheKey, {
+      createdAt: Date.now(),
+      payload,
+    });
+
+    res.json(payload);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Ukjent feil";
+    res.status(502).json({ error: message });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Zen backend kjører på http://localhost:${PORT}`);
+});
+
+function roundCoordinate(value) {
+  return Number(value.toFixed(4));
+}
+
+function normalizeTemperature(value) {
+  if (!Number.isFinite(value)) return null;
+  return Math.round(value);
+}
+
+function findSymbolCode(current) {
+  return (
+    current?.next_1_hours?.summary?.symbol_code ||
+    current?.next_6_hours?.summary?.symbol_code ||
+    current?.next_12_hours?.summary?.symbol_code ||
+    "clearsky_day"
+  );
+}
+
+function buildLocationName(lat, lon) {
+  const isOslo = Math.abs(lat - 59.9139) < 0.02 && Math.abs(lon - 10.7522) < 0.02;
+  if (isOslo) return "Oslo";
+  return `Nær ${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+}
+
+function buildVibe(symbolCode, temperature) {
+  const code = symbolCode.toLowerCase();
+
+  if (code.includes("thunder")) return "Været ber om litt mer ro og litt færre kanter.";
+  if (code.includes("heavyrain")) return "Regnet fyller rommet utenfor, og tempoet kan få falle litt.";
+  if (code.includes("rain")) return "Været inviterer til å senke skuldrene.";
+  if (code.includes("snow")) return "Snøen demper verden og gjør dagen mykere.";
+  if (code.includes("sleet")) return "Luften er rå og skiftende, så hold rytmen enkel.";
+  if (code.includes("fog")) return "Tåken gjør horisonten mindre. Det er nok å se neste steg.";
+  if (code.includes("cloudy")) return "Skyene legger et rolig lokk over dagen.";
+  if (code.includes("fair") || code.includes("partlycloudy")) return "Lyset får slippe gjennom i små, rolige glimt.";
+  if (code.includes("clearsky") && temperature !== null && temperature <= 0) return "Klar luft og lave grader gir dagen en stille kant.";
+  if (code.includes("clearsky")) return "Klarvær gir dagen mer rom og et lettere drag.";
+
+  return "Været ligger stille i bakgrunnen og lar dagen få sin rytme.";
+}
+
+function buildWeatherText(temperature, symbolCode, vibe) {
+  const readable = prettifySymbolCode(symbolCode).toLowerCase();
+  const tempText = temperature === null ? "Været" : `${temperature}° ute`;
+  return `${tempText} og ${readable}. ${vibe}`;
+}
+
+function prettifySymbolCode(symbolCode) {
+  const map = {
+    clearsky_day: "klarvær",
+    clearsky_night: "klar natt",
+    clearsky_polartwilight: "klarvær",
+    fair_day: "pent vær",
+    fair_night: "rolig natt",
+    fair_polartwilight: "pent vær",
+    partlycloudy_day: "delvis skyet",
+    partlycloudy_night: "delvis skyet",
+    partlycloudy_polartwilight: "delvis skyet",
+    cloudy: "overskyet",
+    fog: "tåke",
+    lightrain: "lett regn",
+    rain: "regn",
+    heavyrain: "kraftig regn",
+    lightsnow: "lett snø",
+    snow: "snø",
+    heavysnow: "kraftig snø",
+    sleet: "sludd",
+    lightsleet: "lett sludd",
+    heavysleet: "kraftig sludd",
+    rainshowers_day: "regnbyger",
+    rainshowers_night: "regnbyger",
+    rainshowers_polartwilight: "regnbyger",
+    snowshowers_day: "snøbyger",
+    snowshowers_night: "snøbyger",
+    snowshowers_polartwilight: "snøbyger",
+    thunderstorm: "tordenvær",
+    lightrainandthunder: "lett regn og torden",
+    rainandthunder: "regn og torden",
+    heavyrainandthunder: "kraftig regn og torden",
+  };
+
+  return map[symbolCode] || "rolig vær";
+}
