@@ -145,6 +145,14 @@ export default function ZenDayUI() {
   }, [smallSteps]);
 
   useEffect(() => {
+    if (typeof window.history.scrollRestoration === "string") {
+      window.history.scrollRestoration = "manual";
+    }
+
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0 }));
+  }, []);
+
+  useEffect(() => {
     function closePanelsOnEscape(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       setIsWeatherLabOpen(false);
@@ -232,8 +240,7 @@ export default function ZenDayUI() {
     >
       <AmbientBackdrop palette={palette} scene={scene} />
 
-      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col px-5 pb-[max(7rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 sm:pb-8 lg:px-10 lg:py-9">
-        <div className="lg:flex lg:flex-1 lg:flex-col lg:justify-center lg:pb-12">
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-5 pb-[max(7rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 sm:pb-8 lg:px-10 lg:py-12">
         <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 lg:pt-4">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/[0.48]">Zen</p>
@@ -296,9 +303,8 @@ export default function ZenDayUI() {
           </section>
         </main>
 
-        </div>
 
-        <section className="pt-10 lg:mt-auto lg:pt-10">
+        <section className="pt-10 lg:pt-16">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {sections.map((section) => {
               const state = getSectionState(section.title, activeSectionTitle);

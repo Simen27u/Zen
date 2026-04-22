@@ -1,5 +1,11 @@
 # Changelog
 
+## DEV 1.14 - Stable page flow
+
+- Fjernet ekstra layout-wrapper som kunne gi to konkurrerende scroll-/høydeområder.
+- Lar desktop og mobil bruke én stabil dokumentflyt, slik at siden ikke starter midt i innholdet.
+- Nullstiller lagret scrollposisjon ved innlasting, så nettleseren ikke gjenåpner Zen halvveis ned på siden.
+
 ## DEV 1.13 - Mobile single-scroll flow
 
 - Gjorde desktopens topp-/bunnsone-layout aktiv bare på store skjermer.
