@@ -9,8 +9,11 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    const canvasElement = canvas;
+    const ctx = context;
 
     type Drop = {
       x: number;
@@ -69,10 +72,10 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
       width = window.innerWidth;
       height = window.innerHeight;
       dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.floor(width * dpr);
-      canvas.height = Math.floor(height * dpr);
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
+      canvasElement.width = Math.floor(width * dpr);
+      canvasElement.height = Math.floor(height * dpr);
+      canvasElement.style.width = `${width}px`;
+      canvasElement.style.height = `${height}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 

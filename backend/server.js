@@ -3,6 +3,7 @@ import express from "express";
 const app = express();
 const PORT = 3001;
 const MET_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact";
+const NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse";
 const USER_AGENT = "Zen local development weather guide (contact: local@example.com)";
 const cache = new Map();
 const CACHE_MS = 10 * 60 * 1000;
@@ -66,6 +67,7 @@ app.get("/api/weather", async (req, res) => {
     const symbolCode = findSymbolCode(current);
     const vibe = buildVibe(symbolCode, temperature);
     const text = buildWeatherText(temperature, symbolCode, vibe);
+    const locationName = await resolveLocationName(roundedLat, roundedLon);
 
     const payload = {
       weather: {
@@ -75,7 +77,7 @@ app.get("/api/weather", async (req, res) => {
         text,
       },
       meta: {
-        locationName: buildLocationName(roundedLat, roundedLon),
+        locationName,
       },
     };
 
@@ -117,6 +119,37 @@ function buildLocationName(lat, lon) {
   const isOslo = Math.abs(lat - 59.9139) < 0.02 && Math.abs(lon - 10.7522) < 0.02;
   if (isOslo) return "Oslo";
   return `Nær ${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+}
+
+async function resolveLocationName(lat, lon) {
+  try {
+    const url = `${NOMINATIM_URL}?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1&accept-language=nb,no,en`;
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      return buildLocationName(lat, lon);
+    }
+
+    const data = await response.json();
+    const address = data?.address || {};
+    const name =
+      address.city ||
+      address.town ||
+      address.village ||
+      address.municipality ||
+      address.county ||
+      address.state ||
+      data?.name;
+
+    return name || buildLocationName(lat, lon);
+  } catch {
+    return buildLocationName(lat, lon);
+  }
 }
 
 function buildVibe(symbolCode, temperature) {
