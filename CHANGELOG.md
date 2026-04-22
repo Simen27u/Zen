@@ -1,5 +1,10 @@
 # Changelog
 
+## DEV 1.11 - Mobile viewport polish
+
+- La til mobil `theme-color` og `viewport-fit=cover` for roligere overgang mot telefonens toppfelt.
+- Bruker `100svh` og safe-area-spacing slik at mobilnettlesere med adressefelt oppfører seg mer stabilt.
+- Strammet mobilkort og dagskort, og skjulte DEV Værtest-knappen på små skjermer så den ikke dekker innhold.
 ## DEV 1.10 - Location fallback polish
 
 - La til Vossevangen som kjent sted, slik at live-backend kan vise et bedre navn når reverse geocoding ikke svarer.
