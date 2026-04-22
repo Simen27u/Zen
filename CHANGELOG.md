@@ -1,5 +1,11 @@
 # Changelog
 
+## DEV 1.16 - Desktop vertical balance
+
+- Løftet desktopvisningen litt opp ved å gi mer rolig luft under hovedinnholdet.
+- Beholder fast desktophøyde uten lang tom scrolling.
+- Lar mobiloppsettet være uendret etter viewport-fiksen.
+
 ## DEV 1.15 - Viewport fit polish
 
 - Gjorde bakgrunn, stjerner og vær-effekter faste til skjermen, så de ikke stopper før scrollområdet.
