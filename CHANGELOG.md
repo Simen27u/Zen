@@ -1,5 +1,11 @@
 # Changelog
 
+## DEV 1.15 - Viewport fit polish
+
+- Gjorde bakgrunn, stjerner og vær-effekter faste til skjermen, så de ikke stopper før scrollområdet.
+- Strammet desktopvisningen til én skjermhøyde for å fjerne lang tom scrolling.
+- Reduserte mobilens kunstige bunnluft slik at siden bare scroller når innholdet faktisk trenger plass.
+
 ## DEV 1.14 - Stable page flow
 
 - Fjernet ekstra layout-wrapper som kunne gi to konkurrerende scroll-/høydeområder.

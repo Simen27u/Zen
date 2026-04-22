@@ -235,12 +235,12 @@ export default function ZenDayUI() {
 
   return (
     <div
-      className="relative min-h-[100svh] overflow-x-hidden text-white transition-[background] duration-[12000ms] ease-linear"
+      className="relative min-h-[100svh] overflow-x-hidden text-white transition-[background] duration-[12000ms] ease-linear lg:h-[100svh] lg:overflow-hidden"
       style={{ background: palette.background }}
     >
       <AmbientBackdrop palette={palette} scene={scene} />
 
-      <div className="relative z-10 mx-auto w-full max-w-7xl px-5 pb-[max(7rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 sm:pb-8 lg:px-10 lg:py-12">
+      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 sm:pb-8 lg:h-[100svh] lg:min-h-0 lg:justify-center lg:px-10 lg:py-8">
         <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 lg:pt-4">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/[0.48]">Zen</p>
@@ -257,7 +257,7 @@ export default function ZenDayUI() {
           </div>
         </header>
 
-        <main className="mt-10 grid gap-5 lg:mt-12 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.65fr)]">
+        <main className="mt-10 grid gap-5 lg:mt-10 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.65fr)]">
           <section className="relative overflow-hidden rounded-[1.5rem] border border-white/[0.12] bg-white/[0.11] px-5 py-6 shadow-2xl shadow-black/15 backdrop-blur-2xl sm:rounded-[2rem] sm:px-8 sm:py-8 lg:min-h-[20.5rem]">
             <div className="absolute inset-y-0 right-0 w-[55%] opacity-80">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_42%,rgba(255,214,164,0.36),transparent_34%),radial-gradient(circle_at_45%_58%,rgba(255,255,255,0.14),transparent_42%)]" />
@@ -304,7 +304,7 @@ export default function ZenDayUI() {
         </main>
 
 
-        <section className="pt-10 lg:pt-16">
+        <section className="pt-10 lg:pt-12">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {sections.map((section) => {
               const state = getSectionState(section.title, activeSectionTitle);
@@ -375,7 +375,7 @@ export default function ZenDayUI() {
             })}
           </div>
 
-          <div className="relative mt-5 h-8">
+          <div className="relative mt-4 h-7">
             <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/[0.22]" />
             <div className="absolute left-0 top-1/2 h-px -translate-y-1/2 bg-white/[0.38]" style={{ width: `${dayProgress}%` }} />
             <div
@@ -384,7 +384,7 @@ export default function ZenDayUI() {
             />
           </div>
 
-          <p className="mx-auto mt-3 flex max-w-full flex-wrap items-center justify-center gap-3 text-center text-base text-white/[0.56]">
+          <p className="mx-auto mt-2 flex max-w-full flex-wrap items-center justify-center gap-3 text-center text-base text-white/[0.56]">
             <LeafIcon className="h-5 w-5" />
             <span>Små steg hver dag. Mer enn nok over tid.</span>
             <button

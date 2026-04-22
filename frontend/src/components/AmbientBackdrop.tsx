@@ -396,7 +396,7 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
 
   return (
     <>
-      <div className="pointer-events-none absolute inset-0 opacity-90">
+      <div className="pointer-events-none fixed inset-0 opacity-90">
         <div
           className="absolute inset-[-12%]"
           style={{
@@ -433,14 +433,14 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
       </div>
 
       <div
-        className="pointer-events-none absolute inset-0 opacity-30"
+        className="pointer-events-none fixed inset-0 opacity-30"
         style={{
           background: "linear-gradient(to bottom, rgba(255,255,255,0.05), transparent 30%, transparent 70%, rgba(255,255,255,0.04))",
         }}
       />
 
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.06]"
+        className="pointer-events-none fixed inset-0 opacity-[0.06]"
         style={{
           backgroundImage:
             "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.9) 0 0.6px, transparent 0.8px), radial-gradient(circle at 80% 30%, rgba(255,255,255,0.8) 0 0.7px, transparent 0.9px), radial-gradient(circle at 40% 70%, rgba(255,255,255,0.7) 0 0.7px, transparent 1px)",
@@ -450,7 +450,7 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
       />
 
       {showStars ? (
-        <div className="pointer-events-none absolute inset-0 opacity-45">
+        <div className="pointer-events-none fixed inset-0 opacity-45">
           <div
             className="absolute inset-0"
             style={{
@@ -465,7 +465,7 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
       ) : null}
 
       {showFog ? (
-        <div className="pointer-events-none absolute inset-0 opacity-[0.76]">
+        <div className="pointer-events-none fixed inset-0 opacity-[0.76]">
           <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(235,240,246,0.10),rgba(235,240,246,0.05)_36%,rgba(255,255,255,0.09)_70%,rgba(255,255,255,0.04))]" />
           <div className="absolute inset-x-[-18%] top-[10%] h-32 rounded-full bg-white/[0.16] blur-3xl animate-[fogDrift_22s_ease-in-out_infinite]" />
           <div className="absolute inset-x-[-16%] top-[32%] h-28 rounded-full bg-white/[0.13] blur-3xl animate-[fogDrift_28s_ease-in-out_infinite_reverse]" />
@@ -476,7 +476,7 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
       ) : null}
 
       {showClouds ? (
-        <div className={`pointer-events-none absolute inset-0 ${sky === "storm" ? "opacity-[0.28]" : "opacity-20"}`}>
+        <div className={`pointer-events-none fixed inset-0 ${sky === "storm" ? "opacity-[0.28]" : "opacity-20"}`}>
           <div className="absolute left-[-8%] top-[12%] h-24 w-[44%] rounded-full bg-white/[0.08] blur-3xl animate-[cloudDrift_34s_linear_infinite]" />
           <div className="absolute right-[-10%] top-[28%] h-28 w-[38%] rounded-full bg-white/[0.06] blur-3xl animate-[cloudDrift_44s_linear_infinite_reverse]" />
           {sky === "storm" ? <div className="absolute inset-x-[10%] top-[18%] h-24 rounded-full bg-black/[0.15] blur-3xl" /> : null}
@@ -484,7 +484,7 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
       ) : null}
 
       {showSun ? (
-        <div className={`pointer-events-none absolute inset-0 ${sky === "partly_cloudy" ? "opacity-[0.12]" : "opacity-20"}`}>
+        <div className={`pointer-events-none fixed inset-0 ${sky === "partly_cloudy" ? "opacity-[0.12]" : "opacity-20"}`}>
           <div className="absolute left-[12%] top-[16%] h-40 w-40 rounded-full bg-white/10 blur-3xl animate-[sunPulse_12s_ease-in-out_infinite]" />
         </div>
       ) : null}
@@ -492,7 +492,7 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
       {showCanvas ? (
         <>
           <div
-            className="pointer-events-none absolute inset-0"
+            className="pointer-events-none fixed inset-0"
             style={{
               background:
                 precipitation === "rain" || precipitation === "sleet"
@@ -502,7 +502,7 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
               opacity: precipitation === "rain" || precipitation === "sleet" ? 0.22 : 0.14,
             }}
           />
-          <canvas ref={canvasRef} className="pointer-events-none absolute inset-0" />
+          <canvas ref={canvasRef} className="pointer-events-none fixed inset-0" />
         </>
       ) : null}
 
