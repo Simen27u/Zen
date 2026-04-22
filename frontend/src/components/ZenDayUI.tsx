@@ -233,7 +233,7 @@ export default function ZenDayUI() {
       <AmbientBackdrop palette={palette} scene={scene} />
 
       <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col px-5 pb-[max(7rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 sm:pb-8 lg:px-10 lg:py-9">
-        <div className="flex flex-1 flex-col justify-center lg:pb-12">
+        <div className="lg:flex lg:flex-1 lg:flex-col lg:justify-center lg:pb-12">
         <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 lg:pt-4">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/[0.48]">Zen</p>
@@ -298,7 +298,7 @@ export default function ZenDayUI() {
 
         </div>
 
-        <section className="mt-auto pt-10 lg:pt-10">
+        <section className="pt-10 lg:mt-auto lg:pt-10">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {sections.map((section) => {
               const state = getSectionState(section.title, activeSectionTitle);

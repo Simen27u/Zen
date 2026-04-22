@@ -1,5 +1,9 @@
 # Changelog
 
+## DEV 1.13 - Mobile single-scroll flow
+
+- Gjorde desktopens topp-/bunnsone-layout aktiv bare på store skjermer.
+- Lar mobil bruke én naturlig dokumentflyt, slik at scrolling ikke føles delt i to soner.
 ## DEV 1.12 - Mobile browser spacing
 
 - Lot Zen scrolle vertikalt på mobil i stedet for å klippe innhold når siden er høyere enn skjermen.
