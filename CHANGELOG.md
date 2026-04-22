@@ -1,5 +1,12 @@
-# Changelog
+﻿# Changelog
 
+## DEV 1.7 - Layout balance polish
+
+- Balanserte øvre sone med hilsen, klokke, Nå-panel og område/vær-panel.
+- Flyttet dagskort, tidslinje og små steg ned som en egen roligere bunnsone.
+- Fjernet gjentatt headertekst slik at Nå-panelet eier stemningssetningen.
+- Linjerte område og vær tydeligere i samme glasspanel.
+- Lot bare aktiv dagsperiode vise tekst, mens passerte perioder fades og markeres som gjort.
 ## DEV 1.6 - UI hierarchy cleanup
 
 - Fjernet værtemperatur fra header, slik at klokke og dato står renere.

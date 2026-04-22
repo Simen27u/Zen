@@ -26,7 +26,7 @@ export type Section = {
   time: string;
   mantra: string;
   prompt: string;
-  status: "Nå" | "Senere";
+  status: "Nå" | "Senere" | "Gjort";
 };
 
 export type SmallStep = {

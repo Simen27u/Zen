@@ -233,16 +233,16 @@ export default function ZenDayUI() {
       <AmbientBackdrop palette={palette} scene={scene} />
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-10 lg:py-9">
+        <div className="flex flex-1 flex-col justify-center lg:pb-12">
         <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
+          <div className="min-w-0 lg:pt-4">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/[0.48]">Zen</p>
             <h1 className="mt-5 text-5xl font-semibold leading-none tracking-normal text-white sm:text-6xl lg:text-7xl">
               {getGreeting(activeSectionTitle)}
             </h1>
-            <p className="mt-5 text-xl text-white/[0.72]">{getGreetingSubtext(activeSectionTitle)}</p>
           </div>
 
-          <div className="shrink-0 flex flex-col items-start lg:items-end">
+          <div className="shrink-0 flex flex-col items-start lg:items-end lg:pt-10">
             <div className="text-left lg:text-right">
               <p className="text-5xl font-light leading-none tracking-normal sm:text-6xl">{displayTimeLabel}</p>
               <p className="mt-3 text-sm text-white/[0.56]">{dateLabel}</p>
@@ -270,16 +270,21 @@ export default function ZenDayUI() {
           </section>
 
           <section className="rounded-[2rem] border border-white/[0.11] bg-white/[0.1] px-6 py-7 shadow-2xl shadow-black/10 backdrop-blur-2xl sm:px-8">
-            <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.25em] text-white/[0.58]">
-              <PinIcon className="h-4 w-4" />
-              Område
-            </p>
-            <h2 className="mt-8 min-w-0 text-3xl font-medium tracking-normal">{displayWeather.sourceLabel}</h2>
-            <div className="mt-6 flex min-w-0 items-center gap-4 text-white/[0.72]">
-              <WeatherGlyph icon={weatherIcon} className="h-9 w-9 shrink-0 text-white/[0.86]" />
-              <div className="min-w-0">
-                <p className="text-3xl font-semibold leading-none text-white">{isLoadingWeather && !weatherOverride ? "..." : `${displayWeather.temperature ?? "-"}°`}</p>
-                <p className="mt-2 truncate text-base">{isLoadingWeather && !weatherOverride ? "Laster vær" : displayWeather.conditionLabel}</p>
+            <div className="mt-2 space-y-6">
+              <div className="grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)] items-start gap-4">
+                <PinIcon className="mt-1 h-8 w-8 text-white/[0.62]" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/[0.44]">Område</p>
+                  <h2 className="mt-2 truncate text-3xl font-medium tracking-normal">{displayWeather.sourceLabel}</h2>
+                </div>
+              </div>
+              <div className="grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)] items-start gap-4">
+                <WeatherGlyph icon={weatherIcon} className="mt-1 h-8 w-8 text-white/[0.86]" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/[0.44]">Vær</p>
+                  <p className="mt-2 text-3xl font-semibold leading-none text-white">{isLoadingWeather && !weatherOverride ? "..." : `${displayWeather.temperature ?? "-"}°`}</p>
+                  <p className="mt-2 truncate text-base text-white/[0.72]">{isLoadingWeather && !weatherOverride ? "Laster vær" : displayWeather.conditionLabel}</p>
+                </div>
               </div>
             </div>
 
@@ -291,10 +296,14 @@ export default function ZenDayUI() {
           </section>
         </main>
 
-        <section className="mt-auto pt-10">
+        </div>
+
+        <section className="mt-auto pt-10 lg:pt-10">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {sections.map((section) => {
-              const active = section.title === activeSectionTitle;
+              const state = getSectionState(section.title, activeSectionTitle);
+              const active = state === "active";
+              const complete = state === "complete";
               const icon = getSectionIcon(section.title);
               const visibleSteps = smallSteps.filter((step) => step.sectionTitle === section.title && !isExpiredSmallStep(step)).slice(0, 3);
 
@@ -304,7 +313,9 @@ export default function ZenDayUI() {
                   className={`rounded-[1.65rem] border px-5 py-5 backdrop-blur-2xl transition-all duration-500 ${
                     active
                       ? "border-white/[0.34] bg-white/[0.16] shadow-2xl shadow-black/15"
-                      : "border-white/[0.1] bg-black/[0.08]"
+                      : complete
+                        ? "border-white/[0.07] bg-black/[0.055] opacity-55"
+                        : "border-white/[0.1] bg-black/[0.08]"
                   }`}
                 >
                   <div className="flex min-w-0 items-start justify-between gap-4">
@@ -319,13 +330,13 @@ export default function ZenDayUI() {
                     </div>
                     <span
                       className={`rounded-full px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.18em] ${
-                        active ? "bg-white/[0.18] text-white/90" : "bg-white/[0.09] text-white/[0.5]"
+                        active ? "bg-white/[0.18] text-white/90" : complete ? "bg-white/[0.06] text-white/[0.38]" : "bg-white/[0.09] text-white/[0.5]"
                       }`}
                     >
                       {section.status}
                     </span>
                   </div>
-                  <p className="mt-8 text-lg leading-7 text-white/[0.82]">{section.mantra}</p>
+                  {active ? <p className="mt-8 text-lg leading-7 text-white/[0.82]">{section.mantra}</p> : <div className="mt-8 h-7" aria-hidden="true" />}
                   {visibleSteps.length ? (
                     <div className="mt-5 space-y-2 border-t border-white/[0.09] pt-4">
                       {visibleSteps.map((step) => (
@@ -423,41 +434,48 @@ function buildSections(activeSectionTitle: SectionTitle): Section[] {
       time: "06:00-09:00",
       mantra: "Start mykt.",
       prompt: "Finn ro før fart.",
-      status: activeSectionTitle === "Morgen" ? "Nå" : "Senere",
+      status: getSectionStatus("Morgen", activeSectionTitle),
     },
     {
       title: "Jobb",
       time: "09:00-16:00",
       mantra: "Fokuser med flyt.",
       prompt: "Én ting tydelig foran deg.",
-      status: activeSectionTitle === "Jobb" ? "Nå" : "Senere",
+      status: getSectionStatus("Jobb", activeSectionTitle),
     },
     {
       title: "Kveld",
       time: "16:00-22:00",
       mantra: "Tid for eget rom.",
       prompt: "Litt luft, litt ro.",
-      status: activeSectionTitle === "Kveld" ? "Nå" : "Senere",
+      status: getSectionStatus("Kveld", activeSectionTitle),
     },
     {
       title: "Natt",
       time: "22:00-06:00",
       mantra: "Resten kan vente.",
       prompt: "Resten kan vente.",
-      status: activeSectionTitle === "Natt" ? "Nå" : "Senere",
+      status: getSectionStatus("Natt", activeSectionTitle),
     },
   ];
 }
 
-function getGreetingSubtext(sectionTitle: SectionTitle) {
-  const map: Record<SectionTitle, string> = {
-    Morgen: "En rolig inngang til dagen.",
-    Jobb: "En tydelig rytme, ett steg av gangen.",
-    Kveld: "Litt luft, litt ro, litt eget rom.",
-    Natt: "Lavere lys. Mindre å bære.",
-  };
+function getSectionState(sectionTitle: SectionTitle, activeSectionTitle: SectionTitle) {
+  const order: SectionTitle[] = ["Morgen", "Jobb", "Kveld", "Natt"];
+  const sectionIndex = order.indexOf(sectionTitle);
+  const activeIndex = order.indexOf(activeSectionTitle);
 
-  return map[sectionTitle];
+  if (sectionIndex === activeIndex) return "active";
+  if (sectionIndex < activeIndex) return "complete";
+  return "future";
+}
+
+function getSectionStatus(sectionTitle: SectionTitle, activeSectionTitle: SectionTitle) {
+  const state = getSectionState(sectionTitle, activeSectionTitle);
+
+  if (state === "active") return "Nå";
+  if (state === "complete") return "Gjort";
+  return "Senere";
 }
 
 function WeatherLab({

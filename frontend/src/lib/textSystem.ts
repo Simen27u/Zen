@@ -105,11 +105,10 @@ export function buildAmbientLead(sectionTitle: SectionTitle, weather: WeatherVie
   }
 
   const context = buildTextContext(sectionTitle, weather);
-  const condition = weather.conditionLabel.toLowerCase();
   const weatherLine = selectText(weatherLines[context.mood], context, weather.vibe);
   const periodLine = selectText(periodLines[sectionTitle], context, "La dagen få sin rytme.");
 
-  return `Det er ${condition} ute. ${weatherLine} ${periodLine}`;
+  return `${weatherLine} ${periodLine}`;
 }
 
 export function getWeatherSummary(weather: WeatherViewModel) {
