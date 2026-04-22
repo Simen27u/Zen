@@ -305,7 +305,7 @@ export default function ZenDayUI() {
 
           <p className="mx-auto mt-3 flex max-w-max items-center gap-3 text-center text-base text-white/[0.56]">
             <LeafIcon className="h-5 w-5" />
-            Små valg hver dag. Stor forskjell over tid.
+            Små steg hver dag. Mer enn nok over tid.
           </p>
         </section>
       </div>
@@ -333,28 +333,28 @@ function buildSections(activeSectionTitle: SectionTitle): Section[] {
       title: "Morgen",
       time: "06:00-09:00",
       mantra: "Start mykt.",
-      prompt: "Sett en god tone for dagen.",
+      prompt: "Finn ro før fart.",
       status: activeSectionTitle === "Morgen" ? "Nå" : "Senere",
     },
     {
       title: "Jobb",
       time: "09:00-16:00",
       mantra: "Fokuser med flyt.",
-      prompt: "Én ting av gangen er nok.",
+      prompt: "Én ting tydelig foran deg.",
       status: activeSectionTitle === "Jobb" ? "Nå" : "Senere",
     },
     {
       title: "Kveld",
       time: "16:00-22:00",
       mantra: "Senke skuldrene.",
-      prompt: "Pust ut. Vær til stede.",
+      prompt: "La dagen lande.",
       status: activeSectionTitle === "Kveld" ? "Nå" : "Senere",
     },
     {
       title: "Natt",
       time: "22:00-06:00",
       mantra: "Ro ned.",
-      prompt: "God søvn gjør morgendagen lettere.",
+      prompt: "Resten kan vente.",
       status: activeSectionTitle === "Natt" ? "Nå" : "Senere",
     },
   ];
@@ -362,10 +362,10 @@ function buildSections(activeSectionTitle: SectionTitle): Section[] {
 
 function getGreetingSubtext(sectionTitle: SectionTitle) {
   const map: Record<SectionTitle, string> = {
-    Morgen: "Tid for å lande mykt i dagen.",
-    Jobb: "Tid for å holde rytmen enkel.",
-    Kveld: "Tid for å lande rolig.",
-    Natt: "Tid for å slippe taket.",
+    Morgen: "En rolig inngang til dagen.",
+    Jobb: "En tydelig rytme, ett steg av gangen.",
+    Kveld: "Dagen kan få slippe taket.",
+    Natt: "Lavere lys. Mindre å bære.",
   };
 
   return map[sectionTitle];
@@ -407,7 +407,7 @@ function WeatherLab({
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.58]">DEV værtest</p>
-          <p className="mt-1 text-sm text-white/[0.68]">Test vær og tid uten å vente.</p>
+          <p className="mt-1 text-sm text-white/[0.68]">Prøv vær og tid uten å vente.</p>
         </div>
         <button className="rounded-full bg-white/[0.1] px-3 py-2 text-sm text-white/[0.74] transition hover:bg-white/[0.16] hover:text-white" type="button" onClick={onClose}>
           Lukk

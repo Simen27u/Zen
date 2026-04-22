@@ -1,5 +1,11 @@
 # Changelog
 
+## DEV 1.4 - Tekstpolering
+
+- Strammet inn tekstsystemet med kortere, roligere formuleringer.
+- Bygget tekstene mer modulært fra periode og værtype, med stabil daglig variasjon.
+- Polerte faste skjermtekster i header, dagskort, footer og `Værtest`.
+
 ## DEV 1.3 - Nattstemning og bedre værtest
 
 - Endret lyn fra fullskjerm-flash til tegnet lyn med sidegrener og svakere atmosfærisk glød.
