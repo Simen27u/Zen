@@ -48,6 +48,14 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
       alpha: number;
     };
 
+    type LightningBolt = {
+      points: Array<{ x: number; y: number }>;
+      branches: Array<Array<{ x: number; y: number }>>;
+      life: number;
+      maxLife: number;
+      alpha: number;
+    };
+
     let animationFrameId = 0;
     let width = 0;
     let height = 0;
@@ -56,6 +64,7 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
     let lightningAt = Math.random() * 10 + 3;
     let lightningOpacity = 0;
     let elapsed = 0;
+    let lightningBolt: LightningBolt | null = null;
 
     const drops: Drop[] = [];
     const flakes: Flake[] = [];
@@ -210,6 +219,88 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
       ctx.fill();
     }
 
+    function createLightningBolt(): LightningBolt {
+      const startX = randomBetween(width * 0.18, width * 0.78);
+      const endY = randomBetween(height * 0.32, height * 0.72);
+      const segmentCount = 8 + Math.floor(Math.random() * 4);
+      const points: LightningBolt["points"] = [];
+      const branches: LightningBolt["branches"] = [];
+
+      for (let i = 0; i <= segmentCount; i += 1) {
+        const progress = i / segmentCount;
+        points.push({
+          x: startX + Math.sin(progress * Math.PI * 1.4) * 34 + randomBetween(-32, 32) * (0.35 + progress),
+          y: progress * endY,
+        });
+      }
+
+      for (let i = 2; i < points.length - 2; i += 2) {
+        if (Math.random() > 0.72) continue;
+        const origin = points[i];
+        const direction = Math.random() > 0.5 ? 1 : -1;
+        const branchLength = randomBetween(58, 135);
+        const branchSegments = 2 + Math.floor(Math.random() * 3);
+        const branch: LightningBolt["points"] = [{ ...origin }];
+
+        for (let j = 1; j <= branchSegments; j += 1) {
+          const progress = j / branchSegments;
+          branch.push({
+            x: origin.x + direction * branchLength * progress + randomBetween(-14, 14),
+            y: origin.y + randomBetween(18, 54) * progress,
+          });
+        }
+
+        branches.push(branch);
+      }
+
+      return {
+        points,
+        branches,
+        life: 0.22,
+        maxLife: 0.22,
+        alpha: 0.92,
+      };
+    }
+
+    function strokeLightningPath(points: LightningBolt["points"], alpha: number, widthMultiplier = 1) {
+      if (points.length < 2) return;
+
+      ctx.beginPath();
+      points.forEach((point, index) => {
+        if (index === 0) ctx.moveTo(point.x, point.y);
+        else ctx.lineTo(point.x, point.y);
+      });
+
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.shadowColor = `rgba(190, 218, 255, ${alpha * 0.8})`;
+      ctx.shadowBlur = 18 * widthMultiplier;
+      ctx.strokeStyle = `rgba(185, 213, 255, ${alpha * 0.34})`;
+      ctx.lineWidth = 8 * widthMultiplier;
+      ctx.stroke();
+
+      ctx.shadowBlur = 10 * widthMultiplier;
+      ctx.strokeStyle = `rgba(232, 242, 255, ${alpha})`;
+      ctx.lineWidth = 2.5 * widthMultiplier;
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+    }
+
+    function drawLightningBolt(bolt: LightningBolt, delta: number) {
+      const alpha = Math.max(0, bolt.alpha * (bolt.life / bolt.maxLife));
+      strokeLightningPath(bolt.points, alpha, 1);
+      bolt.branches.forEach((branch) => strokeLightningPath(branch, alpha * 0.74, 0.58));
+
+      ctx.fillStyle = `rgba(190, 215, 255, ${alpha * 0.055})`;
+      ctx.fillRect(0, 0, width, height);
+
+      bolt.life -= delta;
+      if (bolt.life <= 0) {
+        lightningBolt = null;
+      }
+    }
+
     resize();
 
     for (let i = 0; i < rainCount; i += 1) {
@@ -264,14 +355,19 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
       }
 
       if (thunder && elapsed >= lightningAt) {
-        lightningOpacity = 0.9;
+        lightningBolt = createLightningBolt();
+        lightningOpacity = 0.18;
         lightningAt = elapsed + Math.random() * 7 + 4;
+      }
+
+      if (lightningBolt) {
+        drawLightningBolt(lightningBolt, delta);
       }
 
       if (lightningOpacity > 0) {
         ctx.fillStyle = `rgba(235, 242, 255, ${lightningOpacity})`;
         ctx.fillRect(0, 0, width, height);
-        lightningOpacity = Math.max(0, lightningOpacity - delta * 5.5);
+        lightningOpacity = Math.max(0, lightningOpacity - delta * 3.8);
       }
 
       animationFrameId = window.requestAnimationFrame(animate);
@@ -296,6 +392,7 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
   const showFog = sky === "foggy";
   const showClouds = sky === "cloudy" || sky === "partly_cloudy" || sky === "storm";
   const showSun = sky === "clear" || sky === "partly_cloudy";
+  const showStars = scene.isNight;
 
   return (
     <>
@@ -351,6 +448,21 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
           animation: "grainDrift 48s linear infinite",
         }}
       />
+
+      {showStars ? (
+        <div className="pointer-events-none absolute inset-0 opacity-45">
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 12% 18%, rgba(255,255,255,0.95) 0 0.7px, transparent 1px), radial-gradient(circle at 28% 36%, rgba(255,255,255,0.7) 0 0.6px, transparent 0.9px), radial-gradient(circle at 46% 16%, rgba(255,255,255,0.8) 0 0.7px, transparent 1px), radial-gradient(circle at 64% 32%, rgba(255,255,255,0.65) 0 0.6px, transparent 0.9px), radial-gradient(circle at 86% 20%, rgba(255,255,255,0.85) 0 0.7px, transparent 1px), radial-gradient(circle at 76% 58%, rgba(255,255,255,0.58) 0 0.6px, transparent 0.9px), radial-gradient(circle at 18% 72%, rgba(255,255,255,0.7) 0 0.7px, transparent 1px)",
+              backgroundSize: "340px 260px, 420px 320px, 520px 380px, 460px 300px, 390px 310px, 560px 420px, 480px 360px",
+              animation: "starDrift 90s linear infinite, starBreath 7s ease-in-out infinite",
+            }}
+          />
+          <div className="absolute left-[8%] top-[12%] h-36 w-36 rounded-full bg-sky-200/[0.05] blur-3xl" />
+        </div>
+      ) : null}
 
       {showFog ? (
         <div className="pointer-events-none absolute inset-0 opacity-30">
@@ -412,6 +524,14 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
         @keyframes grainDrift {
           0% { transform: translate3d(0, 0, 0); }
           100% { transform: translate3d(-2.5%, 1.5%, 0); }
+        }
+        @keyframes starDrift {
+          0% { transform: translate3d(0, 0, 0); }
+          100% { transform: translate3d(-1.2%, 0.8%, 0); }
+        }
+        @keyframes starBreath {
+          0%, 100% { opacity: 0.58; }
+          50% { opacity: 0.88; }
         }
         @keyframes fogDrift {
           0%, 100% { transform: translateX(0); }

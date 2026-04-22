@@ -1,5 +1,12 @@
 # Changelog
 
+## DEV 1.3 - Nattstemning og bedre værtest
+
+- Endret lyn fra fullskjerm-flash til tegnet lyn med sidegrener og svakere atmosfærisk glød.
+- La til mørkere, mer stjernete nattstemning.
+- Utvidet `Værtest` med valg for tid på døgnet.
+- Ryddet dobbel værvisning ved å gjøre topp-pill til ikon og temperatur, mens områdekortet beholder detaljene.
+
 ## DEV 1.2 - Varierte tekster og bedre stedsnavn
 
 - La til regelstyrte tekstvariasjoner basert på dagsperiode, værtype og dato.

@@ -31,6 +31,14 @@ const weatherSamples = [
   { label: "Storm", symbolCode: "heavyrainandthunder", temperature: 11 },
 ] as const;
 
+const timeSamples = [
+  { label: "Live", sectionTitle: null },
+  { label: "Morgen", sectionTitle: "Morgen" },
+  { label: "Jobb", sectionTitle: "Jobb" },
+  { label: "Kveld", sectionTitle: "Kveld" },
+  { label: "Natt", sectionTitle: "Natt" },
+] as const satisfies ReadonlyArray<{ label: string; sectionTitle: SectionTitle | null }>;
+
 export default function ZenDayUI() {
   const [now, setNow] = useState<Date>(new Date());
   const [weatherData, setWeatherData] = useState<WeatherApiResponse | null>(null);
@@ -38,6 +46,7 @@ export default function ZenDayUI() {
   const [weatherError, setWeatherError] = useState<string>("");
   const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
   const [weatherOverride, setWeatherOverride] = useState<(typeof weatherSamples)[number] | null>(null);
+  const [sectionOverride, setSectionOverride] = useState<SectionTitle | null>(null);
   const [isWeatherLabOpen, setIsWeatherLabOpen] = useState<boolean>(false);
 
   useEffect(() => {
@@ -130,7 +139,11 @@ export default function ZenDayUI() {
 
   const dateLabel = useMemo(() => formatDate(now), [now]);
   const timeLabel = useMemo(() => formatTime(now), [now]);
-  const activeSectionTitle = useMemo(() => getPeriodName(now), [now]);
+  const liveSectionTitle = useMemo(() => getPeriodName(now), [now]);
+  const activeSectionTitle = sectionOverride || liveSectionTitle;
+  const displayNow = useMemo(() => getPreviewDate(now, sectionOverride), [now, sectionOverride]);
+  const displayTimeLabel = useMemo(() => formatTime(displayNow), [displayNow]);
+  const dayProgress = useMemo(() => getDayProgress(displayNow), [displayNow]);
 
   const liveWeather: WeatherViewModel = weatherData?.weather
     ? {
@@ -167,8 +180,7 @@ export default function ZenDayUI() {
   );
   const sections = useMemo(() => buildSections(activeSectionTitle), [activeSectionTitle]);
   const activeSection = sections.find((section) => section.title === activeSectionTitle) || sections[0];
-  const palette = useMemo(() => getWeatherPalette(scene, now), [scene, now]);
-  const dayProgress = useMemo(() => getDayProgress(now), [now]);
+  const palette = useMemo(() => getWeatherPalette(scene, displayNow), [scene, displayNow]);
   const weatherIcon = getWeatherIcon(displayWeather.symbolCode, activeSectionTitle);
 
   return (
@@ -190,17 +202,12 @@ export default function ZenDayUI() {
 
           <div className="flex flex-col items-start gap-4 lg:items-end">
             <div className="text-left lg:text-right">
-              <p className="text-5xl font-light leading-none tracking-normal sm:text-6xl">{timeLabel}</p>
+              <p className="text-5xl font-light leading-none tracking-normal sm:text-6xl">{displayTimeLabel}</p>
               <p className="mt-3 text-sm text-white/[0.56]">{dateLabel}</p>
             </div>
             <div className="flex items-center gap-4 rounded-full border border-white/[0.08] bg-white/[0.11] px-5 py-4 shadow-2xl shadow-black/10 backdrop-blur-2xl">
               <WeatherGlyph icon={weatherIcon} className="h-9 w-9 text-white" />
-              <div>
-                <p className="text-2xl font-semibold leading-none">{isLoadingWeather && !weatherOverride ? "..." : `${displayWeather.temperature ?? "-"}°`}</p>
-                <p className="mt-1 text-sm font-medium text-white/[0.64]">
-                  {isLoadingWeather && !weatherOverride ? "Laster" : displayWeather.conditionLabel}
-                </p>
-              </div>
+              <p className="text-2xl font-semibold leading-none">{isLoadingWeather && !weatherOverride ? "..." : `${displayWeather.temperature ?? "-"}°`}</p>
             </div>
           </div>
         </header>
@@ -305,9 +312,14 @@ export default function ZenDayUI() {
 
       <WeatherLab
         activeSample={weatherOverride?.symbolCode || ""}
+        activeSection={sectionOverride}
         isOpen={isWeatherLabOpen}
         onClose={() => setIsWeatherLabOpen(false)}
-        onReset={() => setWeatherOverride(null)}
+        onReset={() => {
+          setWeatherOverride(null);
+          setSectionOverride(null);
+        }}
+        onSelectSection={setSectionOverride}
         onSelect={(sample) => setWeatherOverride(sample)}
         onToggle={() => setIsWeatherLabOpen((open) => !open)}
       />
@@ -361,16 +373,20 @@ function getGreetingSubtext(sectionTitle: SectionTitle) {
 
 function WeatherLab({
   activeSample,
+  activeSection,
   isOpen,
   onClose,
   onReset,
+  onSelectSection,
   onSelect,
   onToggle,
 }: {
   activeSample: string;
+  activeSection: SectionTitle | null;
   isOpen: boolean;
   onClose: () => void;
   onReset: () => void;
+  onSelectSection: (sectionTitle: SectionTitle | null) => void;
   onSelect: (sample: (typeof weatherSamples)[number]) => void;
   onToggle: () => void;
 }) {
@@ -391,14 +407,38 @@ function WeatherLab({
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.58]">DEV værtest</p>
-          <p className="mt-1 text-sm text-white/[0.68]">Se hvordan scenene oppfører seg.</p>
+          <p className="mt-1 text-sm text-white/[0.68]">Test vær og tid uten å vente.</p>
         </div>
         <button className="rounded-full bg-white/[0.1] px-3 py-2 text-sm text-white/[0.74] transition hover:bg-white/[0.16] hover:text-white" type="button" onClick={onClose}>
           Lukk
         </button>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div className="mt-4">
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-white/[0.5]">Tid</p>
+        <div className="grid grid-cols-5 gap-2">
+          {timeSamples.map((sample) => {
+            const active = activeSection === sample.sectionTitle;
+            return (
+              <button
+                key={sample.label}
+                className={`rounded-2xl border px-2 py-3 text-center text-xs font-semibold transition ${
+                  active ? "border-white/[0.38] bg-white/[0.18] text-white" : "border-white/[0.1] bg-white/[0.07] text-white/[0.72] hover:bg-white/[0.12]"
+                }`}
+                type="button"
+                onClick={() => onSelectSection(sample.sectionTitle)}
+              >
+                {sample.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-white/[0.5]">Vær</p>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {weatherSamples.map((sample) => {
           const active = activeSample === sample.symbolCode;
           return (
@@ -422,6 +462,21 @@ function WeatherLab({
       </button>
     </div>
   );
+}
+
+function getPreviewDate(now: Date, sectionTitle: SectionTitle | null) {
+  if (!sectionTitle) return now;
+
+  const preview = new Date(now);
+  const hourBySection: Record<SectionTitle, number> = {
+    Morgen: 7,
+    Jobb: 12,
+    Kveld: 19,
+    Natt: 23,
+  };
+
+  preview.setHours(hourBySection[sectionTitle], 0, 0, 0);
+  return preview;
 }
 
 function getDayProgress(date: Date) {
