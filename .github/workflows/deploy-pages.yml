@@ -1,4 +1,4 @@
-﻿name: Deploy GitHub Pages
+name: Deploy GitHub Pages
 
 on:
   push:
@@ -36,6 +36,7 @@ jobs:
         working-directory: frontend
         env:
           GITHUB_PAGES: "true"
+          VITE_WEATHER_URL: "https://zen-xyvt.onrender.com/api/weather"
         run: npm run build
 
       - name: Configure Pages

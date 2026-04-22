@@ -8,7 +8,7 @@ import type { Section, SectionTitle, SmallStep, WeatherApiResponse, WeatherViewM
 
 const DEFAULT_LAT = 59.9139;
 const DEFAULT_LON = 10.7522;
-const WEATHER_URL = "http://localhost:3001/api/weather";
+const WEATHER_URL = import.meta.env.VITE_WEATHER_URL || "http://localhost:3001/api/weather";
 const SMALL_STEPS_KEY = "zen_small_steps";
 
 const fallbackWeather: WeatherViewModel = {

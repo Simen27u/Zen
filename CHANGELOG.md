@@ -1,5 +1,10 @@
-﻿# Changelog
+# Changelog
 
+## DEV 1.9 - Live backend connection
+
+- Gjorde frontend klar til å bruke en ekstern vær-backend via `VITE_WEATHER_URL`.
+- Koblet GitHub Pages-builden til Render-backenden.
+- Beholder lokal utvikling mot `localhost:3001` når miljøvariabelen ikke er satt.
 ## DEV 1.8 - GitHub Pages deploy
 
 - La til GitHub Actions-workflow for å bygge og publisere frontend til GitHub Pages.
