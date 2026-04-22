@@ -118,12 +118,70 @@ function findSymbolCode(current) {
 function buildLocationName(lat, lon) {
   const isOslo = Math.abs(lat - 59.9139) < 0.02 && Math.abs(lon - 10.7522) < 0.02;
   if (isOslo) return "Oslo";
+
+  const nearbyPlace = findKnownNearbyPlace(lat, lon, 18);
+  if (nearbyPlace) return nearbyPlace;
+
   return `Nær ${lat.toFixed(2)}, ${lon.toFixed(2)}`;
 }
 
+function findKnownNearbyPlace(lat, lon, maxDistanceKm) {
+  const places = [
+    { name: "Oslo", lat: 59.9139, lon: 10.7522 },
+    { name: "Lillestrøm", lat: 59.956, lon: 11.0492 },
+    { name: "Strømmen", lat: 59.95, lon: 11.0 },
+    { name: "Lørenskog", lat: 59.93, lon: 10.96 },
+    { name: "Jessheim", lat: 60.1415, lon: 11.1752 },
+    { name: "Kløfta", lat: 60.0741, lon: 11.1381 },
+    { name: "Ask", lat: 60.071, lon: 11.035 },
+    { name: "Gjerdrum", lat: 60.071, lon: 11.035 },
+    { name: "Nannestad", lat: 60.217, lon: 11.012 },
+    { name: "Eidsvoll", lat: 60.3306, lon: 11.2616 },
+    { name: "Sørumsand", lat: 59.987, lon: 11.24 },
+    { name: "Fetsund", lat: 59.929, lon: 11.162 },
+  ];
+
+  const nearest = places
+    .map((place) => ({
+      ...place,
+      distance: getDistanceKm(lat, lon, place.lat, place.lon),
+    }))
+    .sort((a, b) => a.distance - b.distance)[0];
+
+  return nearest && nearest.distance <= maxDistanceKm ? nearest.name : "";
+}
+
+function getDistanceKm(latA, lonA, latB, lonB) {
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(latB - latA);
+  const dLon = toRadians(lonB - lonA);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(latA)) * Math.cos(toRadians(latB)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function toRadians(value) {
+  return (value * Math.PI) / 180;
+}
+
 async function resolveLocationName(lat, lon) {
+  const closeKnownPlace = findKnownNearbyPlace(lat, lon, 4);
+  if (closeKnownPlace) return closeKnownPlace;
+
+  const geocodeJsonName = await resolveGeocodeJsonLocationName(lat, lon);
+  if (geocodeJsonName) return geocodeJsonName;
+
+  const jsonName = await resolveJsonLocationName(lat, lon);
+  if (jsonName) return jsonName;
+
+  return buildLocationName(lat, lon);
+}
+
+async function resolveGeocodeJsonLocationName(lat, lon) {
   try {
-    const url = `${NOMINATIM_URL}?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1&accept-language=nb,no,en`;
+    const url = `${NOMINATIM_URL}?format=geocodejson&lat=${lat}&lon=${lon}&zoom=12&addressdetails=1&accept-language=nb,no,en`;
     const response = await fetch(url, {
       headers: {
         "User-Agent": USER_AGENT,
@@ -132,7 +190,31 @@ async function resolveLocationName(lat, lon) {
     });
 
     if (!response.ok) {
-      return buildLocationName(lat, lon);
+      return "";
+    }
+
+    const data = await response.json();
+    const geocoding = data?.features?.[0]?.properties?.geocoding;
+    const admin = geocoding?.admin || {};
+
+    return geocoding?.city || geocoding?.locality || geocoding?.district || admin.level8 || admin.level7 || admin.level6 || geocoding?.county || "";
+  } catch {
+    return "";
+  }
+}
+
+async function resolveJsonLocationName(lat, lon) {
+  try {
+    const url = `${NOMINATIM_URL}?format=jsonv2&lat=${lat}&lon=${lon}&zoom=12&addressdetails=1&accept-language=nb,no,en`;
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      return "";
     }
 
     const data = await response.json();
@@ -141,14 +223,16 @@ async function resolveLocationName(lat, lon) {
       address.city ||
       address.town ||
       address.village ||
+      address.hamlet ||
+      address.suburb ||
       address.municipality ||
       address.county ||
       address.state ||
       data?.name;
 
-    return name || buildLocationName(lat, lon);
+    return name || "";
   } catch {
-    return buildLocationName(lat, lon);
+    return "";
   }
 }
 
