@@ -4,11 +4,12 @@ import { buildAmbientLead, buildLocationVibe, getGreeting, getWeatherSummary } f
 import { getWeatherPalette } from "../lib/weatherPalette";
 import { parseWeatherScene } from "../lib/weatherScene";
 import { formatDate, formatTime, getPeriodName, prettifySymbolCode } from "../lib/weatherUtils";
-import type { Section, SectionTitle, WeatherApiResponse, WeatherViewModel } from "../types/weather";
+import type { Section, SectionTitle, SmallStep, WeatherApiResponse, WeatherViewModel } from "../types/weather";
 
 const DEFAULT_LAT = 59.9139;
 const DEFAULT_LON = 10.7522;
 const WEATHER_URL = "http://localhost:3001/api/weather";
+const SMALL_STEPS_KEY = "zen_small_steps";
 
 const fallbackWeather: WeatherViewModel = {
   sourceLabel: "Oslo",
@@ -48,6 +49,8 @@ export default function ZenDayUI() {
   const [weatherOverride, setWeatherOverride] = useState<(typeof weatherSamples)[number] | null>(null);
   const [sectionOverride, setSectionOverride] = useState<SectionTitle | null>(null);
   const [isWeatherLabOpen, setIsWeatherLabOpen] = useState<boolean>(false);
+  const [smallSteps, setSmallSteps] = useState<SmallStep[]>(() => loadSmallSteps());
+  const [isSmallStepOpen, setIsSmallStepOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -137,6 +140,10 @@ export default function ZenDayUI() {
     };
   }, []);
 
+  useEffect(() => {
+    window.localStorage.setItem(SMALL_STEPS_KEY, JSON.stringify(smallSteps));
+  }, [smallSteps]);
+
   const dateLabel = useMemo(() => formatDate(now), [now]);
   const timeLabel = useMemo(() => formatTime(now), [now]);
   const liveSectionTitle = useMemo(() => getPeriodName(now), [now]);
@@ -183,6 +190,30 @@ export default function ZenDayUI() {
   const palette = useMemo(() => getWeatherPalette(scene, displayNow), [scene, displayNow]);
   const weatherIcon = getWeatherIcon(displayWeather.symbolCode, activeSectionTitle);
 
+  function handleAddSmallStep(text: string, scope: SmallStep["scope"]) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    const step: SmallStep = {
+      id: window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
+      text: trimmed,
+      scope,
+      sectionTitle: placeSmallStep(trimmed, activeSectionTitle),
+      createdAt: new Date().toISOString(),
+      done: false,
+    };
+
+    setSmallSteps((steps) => [step, ...steps].slice(0, 24));
+  }
+
+  function handleToggleSmallStep(id: string) {
+    setSmallSteps((steps) => steps.map((step) => (step.id === id ? { ...step, done: !step.done } : step)));
+  }
+
+  function handleRemoveSmallStep(id: string) {
+    setSmallSteps((steps) => steps.filter((step) => step.id !== id));
+  }
+
   return (
     <div
       className="relative min-h-screen overflow-hidden text-white transition-[background] duration-[12000ms] ease-linear"
@@ -192,7 +223,7 @@ export default function ZenDayUI() {
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-10 lg:py-9">
         <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/[0.48]">Zen</p>
             <h1 className="mt-5 text-5xl font-semibold leading-none tracking-normal text-white sm:text-6xl lg:text-7xl">
               {getGreeting(activeSectionTitle)}
@@ -200,7 +231,7 @@ export default function ZenDayUI() {
             <p className="mt-5 text-xl text-white/[0.72]">{getGreetingSubtext(activeSectionTitle)}</p>
           </div>
 
-          <div className="flex flex-col items-start gap-4 lg:items-end">
+          <div className="shrink-0 flex flex-col items-start gap-4 lg:items-end">
             <div className="text-left lg:text-right">
               <p className="text-5xl font-light leading-none tracking-normal sm:text-6xl">{displayTimeLabel}</p>
               <p className="mt-3 text-sm text-white/[0.56]">{dateLabel}</p>
@@ -213,19 +244,19 @@ export default function ZenDayUI() {
         </header>
 
         <main className="mt-10 grid gap-5 lg:mt-12 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.65fr)]">
-          <section className="relative overflow-hidden rounded-[2rem] border border-white/[0.12] bg-white/[0.11] px-6 py-7 shadow-2xl shadow-black/15 backdrop-blur-2xl sm:px-8 sm:py-8 lg:min-h-[19.5rem]">
+          <section className="relative overflow-hidden rounded-[2rem] border border-white/[0.12] bg-white/[0.11] px-6 py-7 shadow-2xl shadow-black/15 backdrop-blur-2xl sm:px-8 sm:py-8 lg:min-h-[20.5rem]">
             <div className="absolute inset-y-0 right-0 w-[55%] opacity-80">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_42%,rgba(255,214,164,0.36),transparent_34%),radial-gradient(circle_at_45%_58%,rgba(255,255,255,0.14),transparent_42%)]" />
               <div className="absolute bottom-0 right-[-4%] h-40 w-[85%] rounded-t-full bg-white/[0.06] blur-2xl" />
               <div className="absolute bottom-10 right-[10%] h-24 w-[58%] rounded-full bg-white/[0.08] blur-xl" />
             </div>
 
-            <div className="relative max-w-2xl">
+            <div className="relative max-w-2xl pr-0 sm:pr-6">
               <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.25em] text-white/[0.58]">
                 <SparkleIcon className="h-4 w-4" />
                 Nå
               </p>
-              <p className="mt-8 text-3xl leading-tight text-white/[0.94] sm:text-4xl lg:text-[2.75rem]">
+              <p className="mt-8 text-3xl leading-tight text-white/[0.94] sm:text-4xl lg:text-[2.55rem]">
                 {buildAmbientLead(activeSection.title, displayWeather, isLoadingWeather && !weatherOverride)}
               </p>
               <p className="mt-8 max-w-xl text-lg leading-8 text-white/[0.64]">{activeSection.prompt}</p>
@@ -259,6 +290,7 @@ export default function ZenDayUI() {
             {sections.map((section) => {
               const active = section.title === activeSectionTitle;
               const icon = getSectionIcon(section.title);
+              const visibleSteps = smallSteps.filter((step) => step.sectionTitle === section.title && !isExpiredSmallStep(step)).slice(0, 3);
 
               return (
                 <section
@@ -269,12 +301,12 @@ export default function ZenDayUI() {
                       : "border-white/[0.1] bg-black/[0.08]"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-4">
+                  <div className="flex min-w-0 items-start justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-4">
                       <div className={`grid h-12 w-12 place-items-center rounded-full ${active ? "bg-white/[0.16]" : "bg-white/[0.09]"}`}>
                         <WeatherGlyph icon={icon} className="h-6 w-6 text-white/[0.86]" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <h3 className="text-xl font-semibold">{section.title}</h3>
                         <p className="mt-1 text-sm text-white/[0.52]">{section.time}</p>
                       </div>
@@ -289,6 +321,33 @@ export default function ZenDayUI() {
                   </div>
                   <p className="mt-8 text-xl text-white/[0.88]">{section.mantra}</p>
                   <p className="mt-3 text-sm leading-6 text-white/[0.64]">{section.prompt}</p>
+                  {visibleSteps.length ? (
+                    <div className="mt-5 space-y-2 border-t border-white/[0.09] pt-4">
+                      {visibleSteps.map((step) => (
+                        <div key={step.id} className="group flex min-h-8 items-center gap-2 rounded-xl bg-white/[0.055] px-3 py-2">
+                          <button
+                            className={`h-3.5 w-3.5 shrink-0 rounded-full border transition ${
+                              step.done ? "border-white/[0.22] bg-white/[0.48]" : "border-white/[0.38] group-hover:border-white/[0.68]"
+                            }`}
+                            type="button"
+                            aria-label={step.done ? "Marker som ikke gjort" : "Marker som gjort"}
+                            onClick={() => handleToggleSmallStep(step.id)}
+                          />
+                          <span className={`min-w-0 flex-1 truncate text-sm ${step.done ? "text-white/[0.38] line-through" : "text-white/[0.76]"}`}>
+                            {step.text}
+                          </span>
+                          <button
+                            className="shrink-0 text-xs text-white/[0.32] opacity-0 transition hover:text-white/[0.75] group-hover:opacity-100"
+                            type="button"
+                            aria-label="Fjern lite steg"
+                            onClick={() => handleRemoveSmallStep(step.id)}
+                          >
+                            Fjern
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </section>
               );
             })}
@@ -322,6 +381,12 @@ export default function ZenDayUI() {
         onSelectSection={setSectionOverride}
         onSelect={(sample) => setWeatherOverride(sample)}
         onToggle={() => setIsWeatherLabOpen((open) => !open)}
+      />
+      <SmallStepPanel
+        isOpen={isSmallStepOpen}
+        onAdd={handleAddSmallStep}
+        onClose={() => setIsSmallStepOpen(false)}
+        onToggle={() => setIsSmallStepOpen((open) => !open)}
       />
     </div>
   );
@@ -462,6 +527,139 @@ function WeatherLab({
       </button>
     </div>
   );
+}
+
+function SmallStepPanel({
+  isOpen,
+  onAdd,
+  onClose,
+  onToggle,
+}: {
+  isOpen: boolean;
+  onAdd: (text: string, scope: SmallStep["scope"]) => void;
+  onClose: () => void;
+  onToggle: () => void;
+}) {
+  const [text, setText] = useState("");
+  const [scope, setScope] = useState<SmallStep["scope"]>("today");
+
+  function submit() {
+    if (!text.trim()) return;
+    onAdd(text, scope);
+    setText("");
+    onClose();
+  }
+
+  if (!isOpen) {
+    return (
+      <button
+        className="fixed bottom-5 right-5 z-20 grid h-12 w-12 place-items-center rounded-full border border-white/[0.16] bg-white/[0.12] text-2xl font-light text-white/[0.84] shadow-2xl shadow-black/25 backdrop-blur-2xl transition hover:bg-white/[0.18] hover:text-white"
+        type="button"
+        aria-label="Legg til et lite steg"
+        onClick={onToggle}
+      >
+        +
+      </button>
+    );
+  }
+
+  return (
+    <div className="fixed bottom-5 right-5 z-20 w-[min(24rem,calc(100vw-2.5rem))] rounded-[1.5rem] border border-white/[0.14] bg-black/[0.26] p-4 shadow-2xl shadow-black/30 backdrop-blur-2xl">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.58]">Lite steg</p>
+          <p className="mt-1 text-sm text-white/[0.68]">Legg inn noe kort. Zen finner et rolig sted.</p>
+        </div>
+        <button className="rounded-full bg-white/[0.1] px-3 py-2 text-sm text-white/[0.74] transition hover:bg-white/[0.16] hover:text-white" type="button" onClick={onClose}>
+          Lukk
+        </button>
+      </div>
+
+      <input
+        className="mt-4 w-full rounded-2xl border border-white/[0.12] bg-white/[0.09] px-4 py-3 text-base text-white outline-none placeholder:text-white/[0.38] focus:border-white/[0.28]"
+        maxLength={48}
+        placeholder="re opp senga"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") submit();
+        }}
+      />
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {[
+          { label: "I dag", value: "today" as const },
+          { label: "Innen 7 dager", value: "week" as const },
+        ].map((option) => (
+          <button
+            key={option.value}
+            className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+              scope === option.value ? "border-white/[0.38] bg-white/[0.18] text-white" : "border-white/[0.1] bg-white/[0.07] text-white/[0.7] hover:bg-white/[0.12]"
+            }`}
+            type="button"
+            onClick={() => setScope(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      <button className="mt-3 w-full rounded-2xl bg-white/[0.16] px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.22]" type="button" onClick={submit}>
+        Legg til
+      </button>
+    </div>
+  );
+}
+
+function loadSmallSteps(): SmallStep[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const saved = window.localStorage.getItem(SMALL_STEPS_KEY);
+    if (!saved) return [];
+
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter(isSmallStep);
+  } catch {
+    return [];
+  }
+}
+
+function isSmallStep(value: unknown): value is SmallStep {
+  const maybe = value as SmallStep;
+  return (
+    typeof maybe?.id === "string" &&
+    typeof maybe.text === "string" &&
+    (maybe.scope === "today" || maybe.scope === "week") &&
+    ["Morgen", "Jobb", "Kveld", "Natt"].includes(maybe.sectionTitle) &&
+    typeof maybe.createdAt === "string" &&
+    typeof maybe.done === "boolean"
+  );
+}
+
+function placeSmallStep(text: string, fallback: SectionTitle): SectionTitle {
+  const normalized = text.toLowerCase();
+
+  if (matchesAny(normalized, ["seng", "senga", "frokost", "morgen", "kaffe", "dusj", "trening", "gå tur"])) return "Morgen";
+  if (matchesAny(normalized, ["jobb", "mail", "e-post", "epost", "møte", "rapport", "søknad", "ringe", "send"])) return "Jobb";
+  if (matchesAny(normalized, ["rydde", "vaske", "kjøkken", "middag", "handle", "søppel", "klesvask", "mat"])) return "Kveld";
+  if (matchesAny(normalized, ["lese", "sove", "puste", "meditere", "journal", "bok", "legge meg"])) return "Natt";
+
+  return fallback;
+}
+
+function matchesAny(value: string, needles: string[]) {
+  return needles.some((needle) => value.includes(needle));
+}
+
+function isExpiredSmallStep(step: SmallStep) {
+  const created = new Date(step.createdAt).getTime();
+  if (!Number.isFinite(created)) return false;
+
+  const maxAge = step.scope === "today" ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
+  return Date.now() - created > maxAge;
 }
 
 function getPreviewDate(now: Date, sectionTitle: SectionTitle | null) {

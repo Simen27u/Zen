@@ -465,10 +465,12 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
       ) : null}
 
       {showFog ? (
-        <div className="pointer-events-none absolute inset-0 opacity-30">
-          <div className="absolute inset-x-[-10%] top-[14%] h-28 rounded-full bg-white/10 blur-3xl animate-[fogDrift_22s_ease-in-out_infinite]" />
-          <div className="absolute inset-x-[-6%] top-[38%] h-24 rounded-full bg-white/[0.08] blur-3xl animate-[fogDrift_28s_ease-in-out_infinite_reverse]" />
-          <div className="absolute inset-x-[-12%] bottom-[18%] h-32 rounded-full bg-white/[0.08] blur-3xl animate-[fogDrift_32s_ease-in-out_infinite]" />
+        <div className="pointer-events-none absolute inset-0 opacity-70">
+          <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(235,240,246,0.10),rgba(235,240,246,0.05)_36%,rgba(255,255,255,0.09)_70%,rgba(255,255,255,0.04))]" />
+          <div className="absolute inset-x-[-18%] top-[10%] h-32 rounded-full bg-white/[0.16] blur-3xl animate-[fogDrift_22s_ease-in-out_infinite]" />
+          <div className="absolute inset-x-[-16%] top-[32%] h-28 rounded-full bg-white/[0.13] blur-3xl animate-[fogDrift_28s_ease-in-out_infinite_reverse]" />
+          <div className="absolute inset-x-[-20%] top-[52%] h-24 rounded-full bg-white/[0.12] blur-3xl animate-[fogDrift_30s_ease-in-out_infinite]" />
+          <div className="absolute inset-x-[-18%] bottom-[12%] h-36 rounded-full bg-white/[0.12] blur-3xl animate-[fogDrift_34s_ease-in-out_infinite_reverse]" />
         </div>
       ) : null}
 

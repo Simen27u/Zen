@@ -1,5 +1,13 @@
 # Changelog
 
+## DEV 1.5 - Små steg
+
+- La til skjult `Lite steg`-input med lokal lagring i nettleseren.
+- Plasserer korte input regelstyrt i Morgen, Jobb, Kveld eller Natt.
+- Viser små steg diskret i dagskortene, med enkel markering som gjort eller fjerning.
+- Gjorde tåke mer synlig i værbakgrunnen.
+- Strammet tekstflater for å redusere overlapp og trange hitboxer.
+
 ## DEV 1.4 - Tekstpolering
 
 - Strammet inn tekstsystemet med kortere, roligere formuleringer.

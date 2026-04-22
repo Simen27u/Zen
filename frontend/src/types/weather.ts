@@ -29,6 +29,15 @@ export type Section = {
   status: "Nå" | "Senere";
 };
 
+export type SmallStep = {
+  id: string;
+  text: string;
+  scope: "today" | "week";
+  sectionTitle: SectionTitle;
+  createdAt: string;
+  done: boolean;
+};
+
 export type Palette = {
   background: string;
   glowA: string;
