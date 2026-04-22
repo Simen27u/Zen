@@ -29,9 +29,9 @@ const periodLines: Record<SectionTitle, string[]> = {
     "Velg det viktigste først.",
   ],
   Kveld: [
-    "Nå kan dagen få lande.",
-    "Slipp litt av det som henger igjen.",
-    "Ikke alt trenger å bli ferdig i dag.",
+    "Tid for eget rom.",
+    "Litt luft, litt ro.",
+    "Dagen kan få slippe taket.",
     "La tempoet falle.",
   ],
   Natt: [
@@ -95,13 +95,6 @@ const weatherLines: Record<WeatherMood, string[]> = {
   ],
 };
 
-const locationOpeners: Record<SectionTitle, string[]> = {
-  Morgen: ["En myk start.", "Rolig inngang.", "Liten start."],
-  Jobb: ["En stødig rytme.", "Fokus i korte drag.", "Én ting av gangen."],
-  Kveld: ["En mild kveld.", "Dagen kan lande.", "Skuldrene kan falle."],
-  Natt: ["En rolig natt.", "Nok for i dag.", "La resten vente."],
-};
-
 export function getGreeting(sectionTitle: SectionTitle) {
   return greetings[sectionTitle];
 }
@@ -117,14 +110,6 @@ export function buildAmbientLead(sectionTitle: SectionTitle, weather: WeatherVie
   const periodLine = selectText(periodLines[sectionTitle], context, "La dagen få sin rytme.");
 
   return `Det er ${condition} ute. ${weatherLine} ${periodLine}`;
-}
-
-export function buildLocationVibe(sectionTitle: SectionTitle, weather: WeatherViewModel) {
-  const context = buildTextContext(sectionTitle, weather);
-  const opener = selectText(locationOpeners[sectionTitle], context, "Rolig rytme.");
-  const weatherLine = selectText(weatherLines[context.mood], context, weather.vibe);
-
-  return `${opener} ${weatherLine}`;
 }
 
 export function getWeatherSummary(weather: WeatherViewModel) {

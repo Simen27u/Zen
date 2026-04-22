@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import AmbientBackdrop from "./AmbientBackdrop";
-import { buildAmbientLead, buildLocationVibe, getGreeting, getWeatherSummary } from "../lib/textSystem";
+import { buildAmbientLead, getGreeting, getWeatherSummary } from "../lib/textSystem";
 import { getWeatherPalette } from "../lib/weatherPalette";
 import { parseWeatherScene } from "../lib/weatherScene";
 import { formatDate, formatTime, getPeriodName, prettifySymbolCode } from "../lib/weatherUtils";
@@ -144,6 +144,17 @@ export default function ZenDayUI() {
     window.localStorage.setItem(SMALL_STEPS_KEY, JSON.stringify(smallSteps));
   }, [smallSteps]);
 
+  useEffect(() => {
+    function closePanelsOnEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setIsWeatherLabOpen(false);
+      setIsSmallStepOpen(false);
+    }
+
+    window.addEventListener("keydown", closePanelsOnEscape);
+    return () => window.removeEventListener("keydown", closePanelsOnEscape);
+  }, []);
+
   const dateLabel = useMemo(() => formatDate(now), [now]);
   const timeLabel = useMemo(() => formatTime(now), [now]);
   const liveSectionTitle = useMemo(() => getPeriodName(now), [now]);
@@ -186,9 +197,9 @@ export default function ZenDayUI() {
     [displayWeather.symbolCode, activeSectionTitle]
   );
   const sections = useMemo(() => buildSections(activeSectionTitle), [activeSectionTitle]);
-  const activeSection = sections.find((section) => section.title === activeSectionTitle) || sections[0];
   const palette = useMemo(() => getWeatherPalette(scene, displayNow), [scene, displayNow]);
   const weatherIcon = getWeatherIcon(displayWeather.symbolCode, activeSectionTitle);
+  const isAnyPanelOpen = isWeatherLabOpen || isSmallStepOpen;
 
   function handleAddSmallStep(text: string, scope: SmallStep["scope"]) {
     const trimmed = text.trim();
@@ -231,14 +242,10 @@ export default function ZenDayUI() {
             <p className="mt-5 text-xl text-white/[0.72]">{getGreetingSubtext(activeSectionTitle)}</p>
           </div>
 
-          <div className="shrink-0 flex flex-col items-start gap-4 lg:items-end">
+          <div className="shrink-0 flex flex-col items-start lg:items-end">
             <div className="text-left lg:text-right">
               <p className="text-5xl font-light leading-none tracking-normal sm:text-6xl">{displayTimeLabel}</p>
               <p className="mt-3 text-sm text-white/[0.56]">{dateLabel}</p>
-            </div>
-            <div className="flex items-center gap-4 rounded-full border border-white/[0.08] bg-white/[0.11] px-5 py-4 shadow-2xl shadow-black/10 backdrop-blur-2xl">
-              <WeatherGlyph icon={weatherIcon} className="h-9 w-9 text-white" />
-              <p className="text-2xl font-semibold leading-none">{isLoadingWeather && !weatherOverride ? "..." : `${displayWeather.temperature ?? "-"}°`}</p>
             </div>
           </div>
         </header>
@@ -257,9 +264,8 @@ export default function ZenDayUI() {
                 Nå
               </p>
               <p className="mt-8 text-3xl leading-tight text-white/[0.94] sm:text-4xl lg:text-[2.55rem]">
-                {buildAmbientLead(activeSection.title, displayWeather, isLoadingWeather && !weatherOverride)}
+                {buildAmbientLead(activeSectionTitle, displayWeather, isLoadingWeather && !weatherOverride)}
               </p>
-              <p className="mt-8 max-w-xl text-lg leading-8 text-white/[0.64]">{activeSection.prompt}</p>
             </div>
           </section>
 
@@ -268,17 +274,17 @@ export default function ZenDayUI() {
               <PinIcon className="h-4 w-4" />
               Område
             </p>
-            <h2 className="mt-8 text-3xl font-medium tracking-normal">{displayWeather.sourceLabel}</h2>
-            <div className="mt-5 flex items-center gap-3 border-b border-white/[0.12] pb-5 text-white/[0.7]">
-              <span className="text-xl font-semibold text-white">{isLoadingWeather && !weatherOverride ? "..." : `${displayWeather.temperature ?? "-"}°`}</span>
-              <span>{isLoadingWeather && !weatherOverride ? "Laster vær" : displayWeather.conditionLabel}</span>
+            <h2 className="mt-8 min-w-0 text-3xl font-medium tracking-normal">{displayWeather.sourceLabel}</h2>
+            <div className="mt-6 flex min-w-0 items-center gap-4 text-white/[0.72]">
+              <WeatherGlyph icon={weatherIcon} className="h-9 w-9 shrink-0 text-white/[0.86]" />
+              <div className="min-w-0">
+                <p className="text-3xl font-semibold leading-none text-white">{isLoadingWeather && !weatherOverride ? "..." : `${displayWeather.temperature ?? "-"}°`}</p>
+                <p className="mt-2 truncate text-base">{isLoadingWeather && !weatherOverride ? "Laster vær" : displayWeather.conditionLabel}</p>
+              </div>
             </div>
-            <p className="mt-7 text-xl leading-8 text-white/[0.74]">
-              {isLoadingWeather && !weatherOverride ? "Henter vær og stemning for området ditt." : buildLocationVibe(activeSection.title, displayWeather)}
-            </p>
 
             {weatherError ? (
-              <div className="mt-6 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100/85">
+              <div className="mt-7 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100/85">
                 Været kunne ikke hentes akkurat nå. Et lagret sted, standardsted eller reservevær vises i mellomtiden.
               </div>
             ) : null}
@@ -319,8 +325,7 @@ export default function ZenDayUI() {
                       {section.status}
                     </span>
                   </div>
-                  <p className="mt-8 text-xl text-white/[0.88]">{section.mantra}</p>
-                  <p className="mt-3 text-sm leading-6 text-white/[0.64]">{section.prompt}</p>
+                  <p className="mt-8 text-lg leading-7 text-white/[0.82]">{section.mantra}</p>
                   {visibleSteps.length ? (
                     <div className="mt-5 space-y-2 border-t border-white/[0.09] pt-4">
                       {visibleSteps.map((step) => (
@@ -362,12 +367,32 @@ export default function ZenDayUI() {
             />
           </div>
 
-          <p className="mx-auto mt-3 flex max-w-max items-center gap-3 text-center text-base text-white/[0.56]">
+          <p className="mx-auto mt-3 flex max-w-full flex-wrap items-center justify-center gap-3 text-center text-base text-white/[0.56]">
             <LeafIcon className="h-5 w-5" />
-            Små steg hver dag. Mer enn nok over tid.
+            <span>Små steg hver dag. Mer enn nok over tid.</span>
+            <button
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/[0.14] bg-white/[0.08] text-xl font-light leading-none text-white/[0.72] transition hover:bg-white/[0.14] hover:text-white"
+              type="button"
+              aria-label="Legg til et lite steg"
+              onClick={() => setIsSmallStepOpen((open) => !open)}
+            >
+              +
+            </button>
           </p>
         </section>
       </div>
+
+      {isAnyPanelOpen ? (
+        <button
+          className="fixed inset-0 z-20 cursor-default bg-black/5 backdrop-blur-[1px]"
+          type="button"
+          aria-label="Lukk panel"
+          onClick={() => {
+            setIsWeatherLabOpen(false);
+            setIsSmallStepOpen(false);
+          }}
+        />
+      ) : null}
 
       <WeatherLab
         activeSample={weatherOverride?.symbolCode || ""}
@@ -386,7 +411,6 @@ export default function ZenDayUI() {
         isOpen={isSmallStepOpen}
         onAdd={handleAddSmallStep}
         onClose={() => setIsSmallStepOpen(false)}
-        onToggle={() => setIsSmallStepOpen((open) => !open)}
       />
     </div>
   );
@@ -411,14 +435,14 @@ function buildSections(activeSectionTitle: SectionTitle): Section[] {
     {
       title: "Kveld",
       time: "16:00-22:00",
-      mantra: "Senke skuldrene.",
-      prompt: "La dagen lande.",
+      mantra: "Tid for eget rom.",
+      prompt: "Litt luft, litt ro.",
       status: activeSectionTitle === "Kveld" ? "Nå" : "Senere",
     },
     {
       title: "Natt",
       time: "22:00-06:00",
-      mantra: "Ro ned.",
+      mantra: "Resten kan vente.",
       prompt: "Resten kan vente.",
       status: activeSectionTitle === "Natt" ? "Nå" : "Senere",
     },
@@ -429,7 +453,7 @@ function getGreetingSubtext(sectionTitle: SectionTitle) {
   const map: Record<SectionTitle, string> = {
     Morgen: "En rolig inngang til dagen.",
     Jobb: "En tydelig rytme, ett steg av gangen.",
-    Kveld: "Dagen kan få slippe taket.",
+    Kveld: "Litt luft, litt ro, litt eget rom.",
     Natt: "Lavere lys. Mindre å bære.",
   };
 
@@ -468,7 +492,7 @@ function WeatherLab({
   }
 
   return (
-    <div className="fixed bottom-5 left-5 z-20 w-[min(28rem,calc(100vw-2.5rem))] rounded-[1.5rem] border border-white/[0.14] bg-black/[0.24] p-4 shadow-2xl shadow-black/30 backdrop-blur-2xl">
+    <div className="fixed bottom-5 left-5 z-30 w-[min(28rem,calc(100vw-2.5rem))] rounded-[1.5rem] border border-white/[0.14] bg-black/[0.24] p-4 shadow-2xl shadow-black/30 backdrop-blur-2xl">
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.58]">DEV værtest</p>
@@ -533,12 +557,10 @@ function SmallStepPanel({
   isOpen,
   onAdd,
   onClose,
-  onToggle,
 }: {
   isOpen: boolean;
   onAdd: (text: string, scope: SmallStep["scope"]) => void;
   onClose: () => void;
-  onToggle: () => void;
 }) {
   const [text, setText] = useState("");
   const [scope, setScope] = useState<SmallStep["scope"]>("today");
@@ -550,21 +572,10 @@ function SmallStepPanel({
     onClose();
   }
 
-  if (!isOpen) {
-    return (
-      <button
-        className="fixed bottom-5 right-5 z-20 grid h-12 w-12 place-items-center rounded-full border border-white/[0.16] bg-white/[0.12] text-2xl font-light text-white/[0.84] shadow-2xl shadow-black/25 backdrop-blur-2xl transition hover:bg-white/[0.18] hover:text-white"
-        type="button"
-        aria-label="Legg til et lite steg"
-        onClick={onToggle}
-      >
-        +
-      </button>
-    );
-  }
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-5 right-5 z-20 w-[min(24rem,calc(100vw-2.5rem))] rounded-[1.5rem] border border-white/[0.14] bg-black/[0.26] p-4 shadow-2xl shadow-black/30 backdrop-blur-2xl">
+    <div className="fixed bottom-5 right-5 z-30 w-[min(24rem,calc(100vw-2.5rem))] rounded-[1.5rem] border border-white/[0.14] bg-black/[0.26] p-4 shadow-2xl shadow-black/30 backdrop-blur-2xl">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.58]">Lite steg</p>
@@ -686,7 +697,7 @@ function getSectionIcon(sectionTitle: SectionTitle) {
   const map: Record<SectionTitle, WeatherIcon> = {
     Morgen: "sunrise",
     Jobb: "briefcase",
-    Kveld: "moon",
+    Kveld: "evening",
     Natt: "moon",
   };
 
@@ -705,7 +716,7 @@ function getWeatherIcon(symbolCode: string, sectionTitle: SectionTitle): Weather
   return "sun";
 }
 
-type WeatherIcon = "sun" | "sunrise" | "cloud" | "rain" | "snow" | "fog" | "storm" | "moon" | "briefcase";
+type WeatherIcon = "sun" | "sunrise" | "cloud" | "rain" | "snow" | "fog" | "storm" | "moon" | "evening" | "briefcase";
 
 function WeatherGlyph({ icon, className }: { icon: WeatherIcon; className?: string }) {
   const common = {
@@ -773,6 +784,17 @@ function WeatherGlyph({ icon, className }: { icon: WeatherIcon; className?: stri
     return (
       <svg {...common}>
         <path d="M18.2 15.2A7.1 7.1 0 0 1 8.8 5.8 7.1 7.1 0 1 0 18.2 15.2Z" fill="currentColor" opacity="0.82" stroke="none" />
+      </svg>
+    );
+  }
+
+  if (icon === "evening") {
+    return (
+      <svg {...common}>
+        <path d="M4 17h16" />
+        <path d="M7 15a5 5 0 0 1 10 0" />
+        <path d="M6.5 20h11" />
+        <circle cx="18.2" cy="6.2" r="1" fill="currentColor" opacity="0.72" stroke="none" />
       </svg>
     );
   }

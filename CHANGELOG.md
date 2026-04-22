@@ -1,5 +1,14 @@
 # Changelog
 
+## DEV 1.6 - UI hierarchy cleanup
+
+- Fjernet værtemperatur fra header, slik at klokke og dato står renere.
+- Lot områdekortet eie sted, temperatur og værtype uten ekstra stemningstekst.
+- Strammet dagskortene til mer strukturelle rytmekort med korte linjer og små steg.
+- Flyttet `Lite steg`-inngangen til footer-linjen og la til lukking med backdrop og Escape for paneler.
+- Skilte kveld tydeligere fra natt med egen ikonform og friere kveldsspråk.
+- Gjorde tåke litt mer synlig med et ekstra horisontalt dislag.
+
 ## DEV 1.5 - Små steg
 
 - La til skjult `Lite steg`-input med lokal lagring i nettleseren.
