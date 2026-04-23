@@ -1,5 +1,11 @@
 # Changelog
 
+## DEV 1.17 - Responsive viewport recovery
+
+- Fjernet fast desktophøyde som klippet topp og bunn på lavere skjermflater.
+- Lot Zen tilpasse seg tilgjengelig nettleserhøyde og scrolle naturlig når innholdet trenger det.
+- Tonet ned stedsnavn til mer ærlige etiketter som "Nær ..." eller "Standardsted" når presisjonen er usikker.
+
 ## DEV 1.16 - Desktop vertical balance
 
 - Løftet desktopvisningen litt opp ved å gi mer rolig luft under hovedinnholdet.

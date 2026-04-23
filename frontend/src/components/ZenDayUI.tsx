@@ -12,7 +12,7 @@ const WEATHER_URL = import.meta.env.VITE_WEATHER_URL || "http://localhost:3001/a
 const SMALL_STEPS_KEY = "zen_small_steps";
 
 const fallbackWeather: WeatherViewModel = {
-  sourceLabel: "Oslo",
+  sourceLabel: "Standardsted",
   temperature: 6,
   conditionLabel: "Regn",
   vibe: "Været inviterer til å senke skuldrene.",
@@ -32,6 +32,15 @@ const weatherSamples = [
   { label: "Storm", symbolCode: "heavyrainandthunder", temperature: 11 },
 ] as const;
 
+
+function buildSourceLabel(locationName: string | undefined, source: string) {
+  if (source === "Standardsted") return "Standardsted";
+  if (!locationName) return source;
+  if (source === "Brukerens område" || source === "Sist brukte område") {
+    return `Nær ${locationName}`;
+  }
+  return locationName;
+}
 const timeSamples = [
   { label: "Live", sectionTitle: null },
   { label: "Morgen", sectionTitle: "Morgen" },
@@ -80,7 +89,7 @@ export default function ZenDayUI() {
         setUserLocation({
           lat,
           lon,
-          label: data.meta?.locationName || source,
+          label: buildSourceLabel(data.meta?.locationName, source),
         });
       } catch (error) {
         if (!isMounted) return;
@@ -94,7 +103,7 @@ export default function ZenDayUI() {
     }
 
     function loadFallbackWeather() {
-      void loadWeatherForCoords(DEFAULT_LAT, DEFAULT_LON, "Oslo");
+      void loadWeatherForCoords(DEFAULT_LAT, DEFAULT_LON, "Standardsted");
     }
 
     const savedLat = window.localStorage.getItem("zen_lat");
@@ -235,16 +244,16 @@ export default function ZenDayUI() {
 
   return (
     <div
-      className="relative min-h-[100svh] overflow-x-hidden text-white transition-[background] duration-[12000ms] ease-linear lg:h-[100svh] lg:overflow-hidden"
+      className="relative min-h-[100svh] overflow-x-hidden text-white transition-[background] duration-[12000ms] ease-linear"
       style={{ background: palette.background }}
     >
       <AmbientBackdrop palette={palette} scene={scene} />
 
-      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col px-5 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 sm:pb-8 lg:h-[100svh] lg:min-h-0 lg:justify-center lg:px-10 lg:pb-20 lg:pt-6">
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-5 pb-[max(3rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 sm:pb-8 lg:px-10 lg:pb-10 lg:pt-8">
         <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 lg:pt-4">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/[0.48]">Zen</p>
-            <h1 className="mt-5 text-5xl font-semibold leading-none tracking-normal text-white sm:text-6xl lg:text-7xl">
+            <h1 className="mt-5 text-5xl font-semibold leading-none tracking-normal text-white sm:text-6xl lg:text-6xl xl:text-7xl">
               {getGreeting(activeSectionTitle)}
             </h1>
           </div>
@@ -258,7 +267,7 @@ export default function ZenDayUI() {
         </header>
 
         <main className="mt-10 grid gap-5 lg:mt-10 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.65fr)]">
-          <section className="relative overflow-hidden rounded-[1.5rem] border border-white/[0.12] bg-white/[0.11] px-5 py-6 shadow-2xl shadow-black/15 backdrop-blur-2xl sm:rounded-[2rem] sm:px-8 sm:py-8 lg:min-h-[20.5rem]">
+          <section className="relative overflow-hidden rounded-[1.5rem] border border-white/[0.12] bg-white/[0.11] px-5 py-6 shadow-2xl shadow-black/15 backdrop-blur-2xl sm:rounded-[2rem] sm:px-8 sm:py-8 lg:min-h-[18rem] xl:min-h-[20rem]">
             <div className="absolute inset-y-0 right-0 w-[55%] opacity-80">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_42%,rgba(255,214,164,0.36),transparent_34%),radial-gradient(circle_at_45%_58%,rgba(255,255,255,0.14),transparent_42%)]" />
               <div className="absolute bottom-0 right-[-4%] h-40 w-[85%] rounded-t-full bg-white/[0.06] blur-2xl" />
@@ -270,7 +279,7 @@ export default function ZenDayUI() {
                 <SparkleIcon className="h-4 w-4" />
                 Nå
               </p>
-              <p className="mt-6 text-[2rem] leading-tight text-white/[0.94] sm:mt-8 sm:text-4xl lg:text-[2.55rem]">
+              <p className="mt-6 text-[2rem] leading-tight text-white/[0.94] sm:mt-8 sm:text-4xl lg:text-[2.15rem] xl:text-[2.45rem]">
                 {buildAmbientLead(activeSectionTitle, displayWeather, isLoadingWeather && !weatherOverride)}
               </p>
             </div>
