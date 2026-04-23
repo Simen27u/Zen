@@ -1,5 +1,11 @@
 # Changelog
 
+## DEV 1.19 - Restore dev-1.8 scene layout
+
+- Gjeninnførte scenestrukturen fra dev-1.8 med sentrert toppsone, max-w-7xl og bunnseksjon som hviler nederst.
+- Fjernet de nyere viewport-/clamp-/ekstra-brede sceneendringene som gjorde Zen for liten eller for stor ved zoom.
+- Beholder dagens backend- og deploykobling mens selve UI-scenen går tilbake til et mer stabilt utgangspunkt.
+
 ## DEV 1.18 - Fluid desktop scaling
 
 - Lot hovedscenen bruke mer av brede skjermer i stedet for å stoppe ved en fast maksbredde.
