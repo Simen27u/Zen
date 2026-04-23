@@ -1,5 +1,11 @@
 # Changelog
 
+## DEV 1.20 - Responsive scene framing
+
+- Beholder dev-1.8-scenen, men lar hele komposisjonen holde seg samlet i stedet for å strekkes mellom topp og bunn.
+- Fjerner det store mellomrommet som oppstår ved zoom-out ved å sentrere hele scenen som én blokk.
+- Bruker safe-area-padding i topp og bunn, slik at moderne iPhone-skjermer får penere luft rundt scenen.
+
 ## DEV 1.19 - Restore dev-1.8 scene layout
 
 - Gjeninnførte scenestrukturen fra dev-1.8 med sentrert toppsone, max-w-7xl og bunnseksjon som hviler nederst.

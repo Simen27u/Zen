@@ -244,13 +244,13 @@ export default function ZenDayUI() {
 
   return (
     <div
-      className="relative min-h-screen overflow-hidden text-white transition-[background] duration-[12000ms] ease-linear"
+      className="relative min-h-[100svh] overflow-x-hidden text-white transition-[background] duration-[12000ms] ease-linear"
       style={{ background: palette.background }}
     >
       <AmbientBackdrop palette={palette} scene={scene} />
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-10 lg:py-9">
-        <div className="flex flex-1 flex-col justify-center lg:pb-12">
+      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-8 lg:px-10 lg:pt-[max(2rem,env(safe-area-inset-top))] lg:pb-[max(2rem,env(safe-area-inset-bottom))]">
+        <div className="my-auto w-full">
         <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 lg:pt-4">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/[0.48]">Zen</p>
@@ -313,9 +313,7 @@ export default function ZenDayUI() {
           </section>
         </main>
 
-        </div>
-
-        <section className="mt-auto pt-10 lg:pt-10">
+        <section className="mt-10 lg:mt-12">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {sections.map((section) => {
               const state = getSectionState(section.title, activeSectionTitle);
@@ -408,6 +406,7 @@ export default function ZenDayUI() {
             </button>
           </p>
         </section>
+        </div>
       </div>
 
       {isAnyPanelOpen ? (
