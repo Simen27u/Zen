@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AmbientBackdrop from "./AmbientBackdrop";
 import { buildAmbientLead, getGreeting, getWeatherSummary } from "../lib/textSystem";
 import { getWeatherPalette } from "../lib/weatherPalette";
@@ -60,8 +60,6 @@ export default function ZenDayUI() {
   const [isWeatherLabOpen, setIsWeatherLabOpen] = useState<boolean>(false);
   const [smallSteps, setSmallSteps] = useState<SmallStep[]>(() => loadSmallSteps());
   const [isSmallStepOpen, setIsSmallStepOpen] = useState<boolean>(false);
-  const desktopDprRef = useRef<number | null>(null);
-  const [sceneZoomCompensation, setSceneZoomCompensation] = useState<number>(1);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -174,39 +172,6 @@ export default function ZenDayUI() {
     return () => window.removeEventListener("keydown", closePanelsOnEscape);
   }, []);
 
-  useEffect(() => {
-    const desktopMediaQuery = window.matchMedia("(pointer: fine)");
-    const viewport = window.visualViewport;
-
-    function updateSceneZoomCompensation() {
-      if (!desktopMediaQuery.matches) {
-        setSceneZoomCompensation(1);
-        return;
-      }
-
-      const currentDpr = window.devicePixelRatio || 1;
-
-      if (!desktopDprRef.current) {
-        desktopDprRef.current = snapToDesktopDpr(currentDpr);
-      }
-
-      const nextCompensation = clampNumber(desktopDprRef.current / currentDpr, 0.5, 4);
-      const normalizedCompensation = Math.abs(nextCompensation - 1) < 0.02 ? 1 : Number(nextCompensation.toFixed(3));
-      setSceneZoomCompensation(normalizedCompensation);
-    }
-
-    updateSceneZoomCompensation();
-
-    desktopMediaQuery.addEventListener?.("change", updateSceneZoomCompensation);
-    viewport?.addEventListener("resize", updateSceneZoomCompensation);
-    window.addEventListener("resize", updateSceneZoomCompensation);
-
-    return () => {
-      desktopMediaQuery.removeEventListener?.("change", updateSceneZoomCompensation);
-      viewport?.removeEventListener("resize", updateSceneZoomCompensation);
-      window.removeEventListener("resize", updateSceneZoomCompensation);
-    };
-  }, []);
 
   const dateLabel = useMemo(() => formatDate(now), [now]);
   const timeLabel = useMemo(() => formatTime(now), [now]);
@@ -286,7 +251,7 @@ export default function ZenDayUI() {
       <AmbientBackdrop palette={palette} scene={scene} />
 
       <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-8 lg:px-10 lg:pt-[max(2rem,env(safe-area-inset-top))] lg:pb-[max(2rem,env(safe-area-inset-bottom))]">
-        <div className="my-auto w-full" style={getSceneZoomStyle(sceneZoomCompensation)}>
+        <div className="my-auto w-full">
         <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 lg:pt-4">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/[0.48]">Zen</p>
@@ -530,27 +495,6 @@ function getSectionStatus(sectionTitle: SectionTitle, activeSectionTitle: Sectio
   return "Senere";
 }
 
-function getSceneZoomStyle(sceneZoomCompensation: number): CSSProperties | undefined {
-  if (sceneZoomCompensation === 1) return undefined;
-
-  return {
-    zoom: sceneZoomCompensation,
-  };
-}
-
-function snapToDesktopDpr(currentDpr: number) {
-  const commonDesktopDprValues = [1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4];
-
-  return commonDesktopDprValues.reduce((closest, candidate) => {
-    const currentDistance = Math.abs(candidate - currentDpr);
-    const closestDistance = Math.abs(closest - currentDpr);
-    return currentDistance < closestDistance ? candidate : closest;
-  }, commonDesktopDprValues[0]);
-}
-
-function clampNumber(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
 
 function WeatherLab({
   activeSample,

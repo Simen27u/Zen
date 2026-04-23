@@ -1,10 +1,10 @@
 # Changelog
 
-## DEV 1.21 - Desktop zoom compensation
+## DEV 1.22 - Remove broken zoom compensation
 
-- Lar hele Zen-scenen på desktop kompensere for nettleserzoom, slik at paneler, tekst og avstander holder seg mer visuelt stabile.
-- Holder zoommotvekten på selve scenen i stedet for å la topp, midt og bunn drive fra hverandre.
-- Lar mobil fortsette å bruke vanlig layout uten desktopens zoomlogikk.
+- Tok bort desktopfors??ket som motvirket nettleserzoom, fordi det kollapset scenen ved kraftig zoom-out.
+- Gikk tilbake til den stabile scenestrukturen i stedet for ?? la UI-et sl??ss med browserens egen zoom.
+- Beholder dette som l??ring: vi m?? l??se skjermtilpasning med scene-framing, ikke med tvungen zoom-motvekt.
 
 ## DEV 1.20 - Responsive scene framing
 
