@@ -1,5 +1,11 @@
 # Changelog
 
+## DEV 1.18 - Fluid desktop scaling
+
+- Lot hovedscenen bruke mer av brede skjermer i stedet for å stoppe ved en fast maksbredde.
+- Gjorde overskrift, klokke og glasspaneler mer flytende med viewport-baserte størrelser.
+- Lar Zen vokse roligere når vinduet eller zoom-nivået gir mer plass.
+
 ## DEV 1.17 - Responsive viewport recovery
 
 - Fjernet fast desktophøyde som klippet topp og bunn på lavere skjermflater.

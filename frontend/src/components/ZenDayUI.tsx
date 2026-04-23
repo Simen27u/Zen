@@ -249,56 +249,56 @@ export default function ZenDayUI() {
     >
       <AmbientBackdrop palette={palette} scene={scene} />
 
-      <div className="relative z-10 mx-auto w-full max-w-7xl px-5 pb-[max(3rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 sm:pb-8 lg:px-10 lg:pb-10 lg:pt-8">
+      <div className="relative z-10 mx-auto w-[min(94vw,112rem)] px-5 pb-[max(3rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 sm:pb-8 lg:px-10 lg:pb-10 lg:pt-8 2xl:px-12">
         <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 lg:pt-4">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/[0.48]">Zen</p>
-            <h1 className="mt-5 text-5xl font-semibold leading-none tracking-normal text-white sm:text-6xl lg:text-6xl xl:text-7xl">
+            <h1 className="mt-5 text-5xl font-semibold leading-none tracking-normal text-white sm:text-6xl lg:text-[clamp(4rem,4.6vw,6rem)]">
               {getGreeting(activeSectionTitle)}
             </h1>
           </div>
 
           <div className="shrink-0 flex flex-col items-start lg:items-end lg:pt-10">
             <div className="text-left lg:text-right">
-              <p className="text-5xl font-light leading-none tracking-normal sm:text-6xl">{displayTimeLabel}</p>
+              <p className="text-5xl font-light leading-none tracking-normal sm:text-6xl lg:text-[clamp(3.5rem,4vw,5.4rem)]">{displayTimeLabel}</p>
               <p className="mt-3 text-sm text-white/[0.56]">{dateLabel}</p>
             </div>
           </div>
         </header>
 
-        <main className="mt-10 grid gap-5 lg:mt-10 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.65fr)]">
-          <section className="relative overflow-hidden rounded-[1.5rem] border border-white/[0.12] bg-white/[0.11] px-5 py-6 shadow-2xl shadow-black/15 backdrop-blur-2xl sm:rounded-[2rem] sm:px-8 sm:py-8 lg:min-h-[18rem] xl:min-h-[20rem]">
+        <main className="mt-10 grid gap-5 lg:mt-10 lg:gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(22rem,0.78fr)] 2xl:gap-8">
+          <section className="relative overflow-hidden rounded-[1.5rem] border border-white/[0.12] bg-white/[0.11] px-5 py-6 shadow-2xl shadow-black/15 backdrop-blur-2xl sm:rounded-[2rem] sm:px-8 sm:py-8 lg:min-h-[clamp(19rem,24vw,25rem)] lg:px-9 lg:py-9 2xl:px-11 2xl:py-10">
             <div className="absolute inset-y-0 right-0 w-[55%] opacity-80">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_42%,rgba(255,214,164,0.36),transparent_34%),radial-gradient(circle_at_45%_58%,rgba(255,255,255,0.14),transparent_42%)]" />
               <div className="absolute bottom-0 right-[-4%] h-40 w-[85%] rounded-t-full bg-white/[0.06] blur-2xl" />
               <div className="absolute bottom-10 right-[10%] h-24 w-[58%] rounded-full bg-white/[0.08] blur-xl" />
             </div>
 
-            <div className="relative max-w-2xl pr-0 sm:pr-6">
+            <div className="relative max-w-[min(54rem,92%)] pr-0 sm:pr-6 lg:max-w-[min(60rem,86%)]">
               <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.25em] text-white/[0.58]">
                 <SparkleIcon className="h-4 w-4" />
                 Nå
               </p>
-              <p className="mt-6 text-[2rem] leading-tight text-white/[0.94] sm:mt-8 sm:text-4xl lg:text-[2.15rem] xl:text-[2.45rem]">
+              <p className="mt-6 text-[2rem] leading-tight text-white/[0.94] sm:mt-8 sm:text-4xl lg:text-[clamp(2.2rem,2.65vw,3.35rem)]">
                 {buildAmbientLead(activeSectionTitle, displayWeather, isLoadingWeather && !weatherOverride)}
               </p>
             </div>
           </section>
 
-          <section className="rounded-[1.5rem] border border-white/[0.11] bg-white/[0.1] px-5 py-6 shadow-2xl shadow-black/10 backdrop-blur-2xl sm:rounded-[2rem] sm:px-8 sm:py-7">
+          <section className="rounded-[1.5rem] border border-white/[0.11] bg-white/[0.1] px-5 py-6 shadow-2xl shadow-black/10 backdrop-blur-2xl sm:rounded-[2rem] sm:px-8 sm:py-7 lg:px-9 lg:py-8 2xl:px-10 2xl:py-9">
             <div className="mt-2 space-y-6">
               <div className="grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)] items-start gap-4">
                 <PinIcon className="mt-1 h-8 w-8 text-white/[0.62]" />
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/[0.44]">Område</p>
-                  <h2 className="mt-2 truncate text-2xl font-medium tracking-normal sm:text-3xl">{displayWeather.sourceLabel}</h2>
+                  <h2 className="mt-2 truncate text-2xl font-medium tracking-normal sm:text-3xl lg:text-[clamp(2rem,2vw,3rem)]">{displayWeather.sourceLabel}</h2>
                 </div>
               </div>
               <div className="grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)] items-start gap-4">
                 <WeatherGlyph icon={weatherIcon} className="mt-1 h-8 w-8 text-white/[0.86]" />
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/[0.44]">Vær</p>
-                  <p className="mt-2 text-2xl font-semibold leading-none text-white sm:text-3xl">{isLoadingWeather && !weatherOverride ? "..." : `${displayWeather.temperature ?? "-"}°`}</p>
+                  <p className="mt-2 text-2xl font-semibold leading-none text-white sm:text-3xl lg:text-[clamp(2rem,2vw,3rem)]">{isLoadingWeather && !weatherOverride ? "..." : `${displayWeather.temperature ?? "-"}°`}</p>
                   <p className="mt-2 truncate text-base text-white/[0.72]">{isLoadingWeather && !weatherOverride ? "Laster vær" : displayWeather.conditionLabel}</p>
                 </div>
               </div>
@@ -313,8 +313,8 @@ export default function ZenDayUI() {
         </main>
 
 
-        <section className="pt-10 lg:pt-12">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="pt-10 lg:pt-12 2xl:pt-14">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:gap-5">
             {sections.map((section) => {
               const state = getSectionState(section.title, activeSectionTitle);
               const active = state === "active";
