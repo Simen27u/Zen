@@ -1,5 +1,11 @@
 # Changelog
 
+## DEV 1.23 - Desktop scene canvas
+
+- Gj??r desktopvisningen til en fast Zen-scene i en responsiv ramme, i stedet for en vanlig dokumentlayout.
+- Skalerer hele desktop-komposisjonen etter faktisk skjermflate, slik at paneler, tekst og avstander holder seg samlet.
+- Lar mobil fortsette med trygg, naturlig appflyt og safe-area-luft.
+
 ## DEV 1.22 - Remove broken zoom compensation
 
 - Tok bort desktopfors??ket som motvirket nettleserzoom, fordi det kollapset scenen ved kraftig zoom-out.

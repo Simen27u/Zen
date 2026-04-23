@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import AmbientBackdrop from "./AmbientBackdrop";
 import { buildAmbientLead, getGreeting, getWeatherSummary } from "../lib/textSystem";
 import { getWeatherPalette } from "../lib/weatherPalette";
@@ -10,6 +10,9 @@ const DEFAULT_LAT = 59.9139;
 const DEFAULT_LON = 10.7522;
 const WEATHER_URL = import.meta.env.VITE_WEATHER_URL || "http://localhost:3001/api/weather";
 const SMALL_STEPS_KEY = "zen_small_steps";
+const DESKTOP_SCENE_WIDTH = 1280;
+const DESKTOP_SCENE_HEIGHT = 860;
+const DESKTOP_SCENE_GUTTER = 48;
 
 const fallbackWeather: WeatherViewModel = {
   sourceLabel: "Standardsted",
@@ -60,6 +63,8 @@ export default function ZenDayUI() {
   const [isWeatherLabOpen, setIsWeatherLabOpen] = useState<boolean>(false);
   const [smallSteps, setSmallSteps] = useState<SmallStep[]>(() => loadSmallSteps());
   const [isSmallStepOpen, setIsSmallStepOpen] = useState<boolean>(false);
+  const [isDesktopSceneMode, setIsDesktopSceneMode] = useState<boolean>(false);
+  const [desktopSceneScale, setDesktopSceneScale] = useState<number>(1);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -172,6 +177,41 @@ export default function ZenDayUI() {
     return () => window.removeEventListener("keydown", closePanelsOnEscape);
   }, []);
 
+  useEffect(() => {
+    const desktopSceneQuery = window.matchMedia("(min-width: 1024px) and (pointer: fine)");
+    const viewport = window.visualViewport;
+
+    function updateDesktopSceneMode() {
+      const enabled = desktopSceneQuery.matches;
+      setIsDesktopSceneMode(enabled);
+
+      if (!enabled) {
+        setDesktopSceneScale(1);
+        return;
+      }
+
+      const viewportWidth = viewport?.width ?? window.innerWidth;
+      const viewportHeight = viewport?.height ?? window.innerHeight;
+      const availableWidth = Math.max(viewportWidth - DESKTOP_SCENE_GUTTER, 0);
+      const availableHeight = Math.max(viewportHeight - DESKTOP_SCENE_GUTTER, 0);
+      const nextScale = Math.min(availableWidth / DESKTOP_SCENE_WIDTH, availableHeight / DESKTOP_SCENE_HEIGHT);
+
+      setDesktopSceneScale(clampNumber(nextScale, 0.72, 1.2));
+    }
+
+    updateDesktopSceneMode();
+
+    desktopSceneQuery.addEventListener?.("change", updateDesktopSceneMode);
+    viewport?.addEventListener("resize", updateDesktopSceneMode);
+    window.addEventListener("resize", updateDesktopSceneMode);
+
+    return () => {
+      desktopSceneQuery.removeEventListener?.("change", updateDesktopSceneMode);
+      viewport?.removeEventListener("resize", updateDesktopSceneMode);
+      window.removeEventListener("resize", updateDesktopSceneMode);
+    };
+  }, []);
+
 
   const dateLabel = useMemo(() => formatDate(now), [now]);
   const timeLabel = useMemo(() => formatTime(now), [now]);
@@ -218,6 +258,22 @@ export default function ZenDayUI() {
   const palette = useMemo(() => getWeatherPalette(scene, displayNow), [scene, displayNow]);
   const weatherIcon = getWeatherIcon(displayWeather.symbolCode, activeSectionTitle);
   const isAnyPanelOpen = isWeatherLabOpen || isSmallStepOpen;
+  const desktopSceneFrameStyle = useMemo<CSSProperties | undefined>(() => {
+    if (!isDesktopSceneMode) return undefined;
+
+    return {
+      width: `${Math.round(DESKTOP_SCENE_WIDTH * desktopSceneScale)}px`,
+      height: `${Math.round(DESKTOP_SCENE_HEIGHT * desktopSceneScale)}px`,
+    };
+  }, [desktopSceneScale, isDesktopSceneMode]);
+  const desktopSceneStyle = useMemo<CSSProperties | undefined>(() => {
+    if (!isDesktopSceneMode) return undefined;
+
+    return {
+      transform: `translate(-50%, -50%) scale(${desktopSceneScale})`,
+      transformOrigin: "center center",
+    };
+  }, [desktopSceneScale, isDesktopSceneMode]);
 
   function handleAddSmallStep(text: string, scope: SmallStep["scope"]) {
     const trimmed = text.trim();
@@ -250,8 +306,12 @@ export default function ZenDayUI() {
     >
       <AmbientBackdrop palette={palette} scene={scene} />
 
-      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-8 lg:px-10 lg:pt-[max(2rem,env(safe-area-inset-top))] lg:pb-[max(2rem,env(safe-area-inset-bottom))]">
-        <div className="my-auto w-full">
+      <div className="relative z-10 w-full lg:flex lg:min-h-screen lg:items-center lg:justify-center lg:px-6 lg:py-6">
+        <div className="w-full lg:relative" style={desktopSceneFrameStyle}>
+          <div
+            className="mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-8 lg:absolute lg:left-1/2 lg:top-1/2 lg:h-[860px] lg:w-[1280px] lg:min-h-0 lg:max-w-none lg:overflow-hidden lg:px-10 lg:py-9"
+            style={desktopSceneStyle}
+          >
         <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 lg:pt-4">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/[0.48]">Zen</p>
@@ -407,6 +467,7 @@ export default function ZenDayUI() {
             </button>
           </p>
         </section>
+          </div>
         </div>
       </div>
 
@@ -495,6 +556,10 @@ function getSectionStatus(sectionTitle: SectionTitle, activeSectionTitle: Sectio
   return "Senere";
 }
 
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
 
 function WeatherLab({
   activeSample,
