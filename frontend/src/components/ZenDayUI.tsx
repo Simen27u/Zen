@@ -3,8 +3,30 @@ import AmbientBackdrop from "./AmbientBackdrop";
 import { buildAmbientLead, getGreeting, getWeatherSummary } from "../lib/textSystem";
 import { getWeatherPalette } from "../lib/weatherPalette";
 import { parseWeatherScene } from "../lib/weatherScene";
-import { formatDate, formatTime, getPeriodName, prettifySymbolCode } from "../lib/weatherUtils";
-import type { Section, SectionTitle, SmallStep, WeatherApiResponse, WeatherViewModel } from "../types/weather";
+import {
+  RHYTHM_FEELING_OPTIONS,
+  RHYTHM_PROFILE_KEY,
+  buildDailyNudges,
+  buildRhythmAnchors,
+  buildRhythmPlan,
+  buildRhythmSections,
+  buildRhythmSystemSteps,
+  getCurrentRhythmPhase,
+  getPhasePreviewDate,
+  getPhaseState,
+  getProfileSignalsFromFeeling,
+  getRhythmCalendarContext,
+  getRhythmProgress,
+  isValidClockTime,
+  normalizeSectionTitle,
+  type RhythmCalendarContext,
+  type RhythmAnchor,
+  type RhythmNudge,
+  type RhythmPlan,
+  type RhythmSystemStep,
+} from "../lib/rhythm";
+import { formatDate, formatTime, prettifySymbolCode } from "../lib/weatherUtils";
+import type { RhythmProfile, SectionTitle, SmallStep, WeatherApiResponse, WeatherViewModel } from "../types/weather";
 
 const DEFAULT_LAT = 59.9139;
 const DEFAULT_LON = 10.7522;
@@ -13,6 +35,11 @@ const SMALL_STEPS_KEY = "zen_small_steps";
 const DESKTOP_SCENE_WIDTH = 1280;
 const DESKTOP_SCENE_HEIGHT = 860;
 const DESKTOP_SCENE_GUTTER = 48;
+
+type RhythmProfileInput = Pick<
+  RhythmProfile,
+  "rhythmFeeling" | "usualBedtime" | "usualWake" | "desiredWake" | "weekdaySleepTime" | "weekdayWakeTime" | "weekendSleepTime" | "weekendWakeTime"
+>;
 
 const fallbackWeather: WeatherViewModel = {
   sourceLabel: "Standardsted",
@@ -47,7 +74,8 @@ function buildSourceLabel(locationName: string | undefined, source: string) {
 const timeSamples = [
   { label: "Live", sectionTitle: null },
   { label: "Morgen", sectionTitle: "Morgen" },
-  { label: "Jobb", sectionTitle: "Jobb" },
+  { label: "Fokus", sectionTitle: "Fokus" },
+  { label: "Pause", sectionTitle: "Pause" },
   { label: "Kveld", sectionTitle: "Kveld" },
   { label: "Natt", sectionTitle: "Natt" },
 ] as const satisfies ReadonlyArray<{ label: string; sectionTitle: SectionTitle | null }>;
@@ -63,6 +91,12 @@ export default function ZenDayUI() {
   const [isWeatherLabOpen, setIsWeatherLabOpen] = useState<boolean>(false);
   const [smallSteps, setSmallSteps] = useState<SmallStep[]>(() => loadSmallSteps());
   const [isSmallStepOpen, setIsSmallStepOpen] = useState<boolean>(false);
+  const [rhythmProfile, setRhythmProfile] = useState<RhythmProfile | null>(() => loadRhythmProfile());
+  const [isRhythmSetupOpen, setIsRhythmSetupOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return !window.localStorage.getItem(RHYTHM_PROFILE_KEY);
+  });
+  const [isRhythmDrawerOpen, setIsRhythmDrawerOpen] = useState<boolean>(false);
   const [isDesktopSceneMode, setIsDesktopSceneMode] = useState<boolean>(false);
   const [desktopSceneScale, setDesktopSceneScale] = useState<number>(1);
 
@@ -171,6 +205,7 @@ export default function ZenDayUI() {
       if (event.key !== "Escape") return;
       setIsWeatherLabOpen(false);
       setIsSmallStepOpen(false);
+      setIsRhythmDrawerOpen(false);
     }
 
     window.addEventListener("keydown", closePanelsOnEscape);
@@ -214,12 +249,12 @@ export default function ZenDayUI() {
 
 
   const dateLabel = useMemo(() => formatDate(now), [now]);
-  const timeLabel = useMemo(() => formatTime(now), [now]);
-  const liveSectionTitle = useMemo(() => getPeriodName(now), [now]);
+  const rhythmPlan = useMemo(() => buildRhythmPlan(rhythmProfile), [rhythmProfile]);
+  const liveSectionTitle = useMemo(() => getCurrentRhythmPhase(now, rhythmPlan), [now, rhythmPlan]);
   const activeSectionTitle = sectionOverride || liveSectionTitle;
-  const displayNow = useMemo(() => getPreviewDate(now, sectionOverride), [now, sectionOverride]);
+  const displayNow = useMemo(() => getPhasePreviewDate(now, sectionOverride, rhythmPlan), [now, sectionOverride, rhythmPlan]);
   const displayTimeLabel = useMemo(() => formatTime(displayNow), [displayNow]);
-  const dayProgress = useMemo(() => getDayProgress(displayNow), [displayNow]);
+  const dayProgress = useMemo(() => getRhythmProgress(displayNow, rhythmPlan), [displayNow, rhythmPlan]);
 
   const liveWeather: WeatherViewModel = weatherData?.weather
     ? {
@@ -254,10 +289,14 @@ export default function ZenDayUI() {
     () => parseWeatherScene(displayWeather.symbolCode, activeSectionTitle),
     [displayWeather.symbolCode, activeSectionTitle]
   );
-  const sections = useMemo(() => buildSections(activeSectionTitle), [activeSectionTitle]);
+  const sections = useMemo(() => buildRhythmSections(rhythmPlan, activeSectionTitle), [activeSectionTitle, rhythmPlan]);
+  const rhythmNudges = useMemo(() => buildDailyNudges(rhythmPlan, activeSectionTitle, displayWeather), [activeSectionTitle, displayWeather, rhythmPlan]);
+  const rhythmAnchors = useMemo(() => buildRhythmAnchors(rhythmPlan, activeSectionTitle, displayWeather), [activeSectionTitle, displayWeather, rhythmPlan]);
+  const rhythmSystemSteps = useMemo(() => buildRhythmSystemSteps(rhythmPlan), [rhythmPlan]);
+  const rhythmCalendar = useMemo(() => getRhythmCalendarContext(displayNow, rhythmPlan), [displayNow, rhythmPlan]);
   const palette = useMemo(() => getWeatherPalette(scene, displayNow), [scene, displayNow]);
   const weatherIcon = getWeatherIcon(displayWeather.symbolCode, activeSectionTitle);
-  const isAnyPanelOpen = isWeatherLabOpen || isSmallStepOpen;
+  const isAnyPanelOpen = isWeatherLabOpen || isSmallStepOpen || isRhythmDrawerOpen;
   const desktopSceneFrameStyle = useMemo<CSSProperties | undefined>(() => {
     if (!isDesktopSceneMode) return undefined;
 
@@ -297,6 +336,21 @@ export default function ZenDayUI() {
 
   function handleRemoveSmallStep(id: string) {
     setSmallSteps((steps) => steps.filter((step) => step.id !== id));
+  }
+
+  function handleSaveRhythmProfile(values: RhythmProfileInput) {
+    const timestamp = new Date().toISOString();
+    const profileSignals = getProfileSignalsFromFeeling(values.rhythmFeeling);
+    const nextProfile: RhythmProfile = {
+      ...values,
+      ...profileSignals,
+      createdAt: rhythmProfile?.createdAt || timestamp,
+      updatedAt: timestamp,
+    };
+
+    setRhythmProfile(nextProfile);
+    window.localStorage.setItem(RHYTHM_PROFILE_KEY, JSON.stringify(nextProfile));
+    setIsRhythmSetupOpen(false);
   }
 
   return (
@@ -375,9 +429,9 @@ export default function ZenDayUI() {
         </main>
 
         <section className="mt-10 lg:mt-12">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             {sections.map((section) => {
-              const state = getSectionState(section.title, activeSectionTitle);
+              const state = getPhaseState(section.title, activeSectionTitle);
               const active = state === "active";
               const complete = state === "complete";
               const icon = getSectionIcon(section.title);
@@ -412,7 +466,14 @@ export default function ZenDayUI() {
                       {section.status}
                     </span>
                   </div>
-                  {active ? <p className="mt-8 text-lg leading-7 text-white/[0.82]">{section.mantra}</p> : <div className="mt-8 h-7" aria-hidden="true" />}
+                  {active ? (
+                    <div className="mt-6 space-y-2">
+                      <p className="text-lg leading-7 text-white/[0.86]">{section.mantra}</p>
+                      <p className="text-sm leading-6 text-white/[0.58]">{section.prompt}</p>
+                    </div>
+                  ) : (
+                    <div className="mt-8 h-7" aria-hidden="true" />
+                  )}
                   {visibleSteps.length ? (
                     <div className="mt-5 space-y-2 border-t border-white/[0.09] pt-4">
                       {visibleSteps.map((step) => (
@@ -479,9 +540,12 @@ export default function ZenDayUI() {
           onClick={() => {
             setIsWeatherLabOpen(false);
             setIsSmallStepOpen(false);
+            setIsRhythmDrawerOpen(false);
           }}
         />
       ) : null}
+
+      <RhythmDrawerToggle isOpen={isRhythmDrawerOpen} onToggle={() => setIsRhythmDrawerOpen((open) => !open)} />
 
       <WeatherLab
         activeSample={weatherOverride?.symbolCode || ""}
@@ -501,59 +565,421 @@ export default function ZenDayUI() {
         onAdd={handleAddSmallStep}
         onClose={() => setIsSmallStepOpen(false)}
       />
+      <RhythmDrawer
+        activeSection={activeSectionTitle}
+        anchors={rhythmAnchors}
+        calendar={rhythmCalendar}
+        hasProfile={Boolean(rhythmProfile)}
+        isOpen={isRhythmDrawerOpen}
+        isSetupOpen={isRhythmSetupOpen}
+        nudges={rhythmNudges}
+        onClose={() => setIsRhythmDrawerOpen(false)}
+        onEdit={() => setIsRhythmSetupOpen(true)}
+        onSave={handleSaveRhythmProfile}
+        onSetupCancel={rhythmProfile ? () => setIsRhythmSetupOpen(false) : undefined}
+        plan={rhythmPlan}
+        profile={rhythmProfile}
+        systemSteps={rhythmSystemSteps}
+      />
     </div>
   );
 }
 
-function buildSections(activeSectionTitle: SectionTitle): Section[] {
-  return [
-    {
-      title: "Morgen",
-      time: "06:00-09:00",
-      mantra: "Start mykt.",
-      prompt: "Finn ro før fart.",
-      status: getSectionStatus("Morgen", activeSectionTitle),
-    },
-    {
-      title: "Jobb",
-      time: "09:00-16:00",
-      mantra: "Fokuser med flyt.",
-      prompt: "Én ting tydelig foran deg.",
-      status: getSectionStatus("Jobb", activeSectionTitle),
-    },
-    {
-      title: "Kveld",
-      time: "16:00-22:00",
-      mantra: "Tid for eget rom.",
-      prompt: "Litt luft, litt ro.",
-      status: getSectionStatus("Kveld", activeSectionTitle),
-    },
-    {
-      title: "Natt",
-      time: "22:00-06:00",
-      mantra: "Resten kan vente.",
-      prompt: "Resten kan vente.",
-      status: getSectionStatus("Natt", activeSectionTitle),
-    },
-  ];
+function RhythmDrawerToggle({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+  return (
+    <button
+      className={`fixed right-4 top-1/2 z-30 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/[0.14] bg-black/[0.18] text-xl font-semibold leading-none text-white/[0.78] shadow-2xl shadow-black/20 backdrop-blur-2xl transition hover:bg-white/[0.12] hover:text-white ${
+        isOpen ? "opacity-0 pointer-events-none" : "opacity-100"
+      }`}
+      type="button"
+      aria-label="Åpne rytmepanel"
+      title="Rytme"
+      onClick={onToggle}
+    >
+      <span className="text-lg leading-none" aria-hidden="true">&lt;</span>
+    </button>
+  );
 }
 
-function getSectionState(sectionTitle: SectionTitle, activeSectionTitle: SectionTitle) {
-  const order: SectionTitle[] = ["Morgen", "Jobb", "Kveld", "Natt"];
-  const sectionIndex = order.indexOf(sectionTitle);
-  const activeIndex = order.indexOf(activeSectionTitle);
+function RhythmDrawer({
+  activeSection,
+  anchors,
+  calendar,
+  hasProfile,
+  isOpen,
+  isSetupOpen,
+  nudges,
+  onClose,
+  onEdit,
+  onSave,
+  onSetupCancel,
+  plan,
+  profile,
+  systemSteps,
+}: {
+  activeSection: SectionTitle;
+  anchors: RhythmAnchor[];
+  calendar: RhythmCalendarContext;
+  hasProfile: boolean;
+  isOpen: boolean;
+  isSetupOpen: boolean;
+  nudges: RhythmNudge[];
+  onClose: () => void;
+  onEdit: () => void;
+  onSave: (values: RhythmProfileInput) => void;
+  onSetupCancel?: () => void;
+  plan: RhythmPlan;
+  profile: RhythmProfile | null;
+  systemSteps: RhythmSystemStep[];
+}) {
+  if (!isOpen) return null;
 
-  if (sectionIndex === activeIndex) return "active";
-  if (sectionIndex < activeIndex) return "complete";
-  return "future";
+  return (
+    <aside className="fixed bottom-0 right-0 top-0 z-30 w-[min(32rem,calc(100vw-1rem))] overflow-y-auto border-l border-white/[0.14] bg-black/[0.2] px-5 py-5 text-white shadow-2xl shadow-black/30 backdrop-blur-2xl sm:px-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.48]">Zen</p>
+          <h2 className="mt-2 text-3xl font-semibold tracking-normal">Rytme</h2>
+        </div>
+        <button
+          className="grid h-11 w-11 place-items-center rounded-full border border-white/[0.14] bg-white/[0.08] text-2xl leading-none text-white/[0.74] transition hover:bg-white/[0.14] hover:text-white"
+          type="button"
+          aria-label="Lukk rytmepanel"
+          onClick={onClose}
+        >
+          &gt;
+        </button>
+      </div>
+
+      <div className="mt-6 space-y-4">
+        {isSetupOpen ? (
+          <RhythmSetupPanel profile={profile} onCancel={onSetupCancel} onSave={onSave} />
+        ) : (
+          <RhythmPlanCard plan={plan} hasProfile={hasProfile} onEdit={onEdit} />
+        )}
+        <RhythmCompassPanel anchors={anchors} activeSection={activeSection} steps={systemSteps} />
+        <CalendarContextPanel calendar={calendar} />
+        <DailyNudgesPanel activeSection={activeSection} nudges={nudges} />
+      </div>
+    </aside>
+  );
 }
 
-function getSectionStatus(sectionTitle: SectionTitle, activeSectionTitle: SectionTitle) {
-  const state = getSectionState(sectionTitle, activeSectionTitle);
+function RhythmPlanCard({
+  plan,
+  hasProfile,
+  onEdit,
+}: {
+  plan: RhythmPlan;
+  hasProfile: boolean;
+  onEdit: () => void;
+}) {
+  return (
+    <section className="rounded-[1.4rem] border border-white/[0.12] bg-white/[0.09] px-5 py-5 shadow-2xl shadow-black/10 backdrop-blur-2xl">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">Døgnrytme</p>
+          <h3 className="mt-2 text-2xl font-semibold tracking-normal text-white">Tilbake i rytme, litt etter litt.</h3>
+        </div>
+        <button
+          className="rounded-full border border-white/[0.14] bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/[0.74] transition hover:bg-white/[0.14] hover:text-white"
+          type="button"
+          onClick={onEdit}
+        >
+          Juster
+        </button>
+      </div>
 
-  if (state === "active") return "Nå";
-  if (state === "complete") return "Gjort";
-  return "Senere";
+      <p className="mt-5 max-w-2xl text-base leading-7 text-white/[0.74]">{plan.feedback}</p>
+      <div className="mt-4 rounded-[1.15rem] border border-white/[0.09] bg-black/[0.08] px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-white/[0.13] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/[0.72]">
+            {plan.systemFocusLabel}
+          </span>
+          <span className="text-sm text-white/[0.58]">{plan.rhythmStateLabel}</span>
+          <span className="text-sm text-white/[0.38]">·</span>
+          <span className="text-sm text-white/[0.58]">{plan.chronotypeLabel}</span>
+        </div>
+        <p className="mt-2 text-sm leading-6 text-white/[0.54]">{plan.systemFocusText}</p>
+      </div>
+      {!hasProfile ? <p className="mt-3 text-sm text-white/[0.48]">Zen viser en rolig standardrytme til du legger inn din egen.</p> : null}
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="border-t border-white/[0.1] pt-3">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Nåværende</p>
+          <p className="mt-2 text-2xl font-semibold">{plan.currentWindowLabel}</p>
+        </div>
+        <div className="border-t border-white/[0.1] pt-3">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Retning</p>
+          <p className="mt-2 text-2xl font-semibold">{plan.targetWindowLabel}</p>
+        </div>
+        <div className="border-t border-white/[0.1] pt-3">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Første steg</p>
+          <p className="mt-2 text-2xl font-semibold">{plan.nextBedtimeLabel}</p>
+          <p className="mt-1 text-sm text-white/[0.5]">
+            {plan.isCircadianDrifted ? "oppvåkning flyttes gradvis tidligere" : `våkne ca. ${plan.nextWakeLabel}`}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 rounded-[1.15rem] border border-white/[0.08] bg-white/[0.045] px-4 py-3 sm:grid-cols-2">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/[0.38]">Ukedag</p>
+          <p className="mt-1 text-sm font-semibold text-white/[0.76]">{plan.weekdayWindowLabel}</p>
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/[0.38]">Helg/fri</p>
+          <p className="mt-1 text-sm font-semibold text-white/[0.76]">{plan.weekendWindowLabel}</p>
+        </div>
+      </div>
+
+      <p className="mt-5 border-t border-white/[0.08] pt-4 text-sm leading-6 text-white/[0.5]">
+        Fasene på forsiden følger retningen, ikke en forskjøvet døgnrytme. Kveldstype er ikke feil i seg selv; det er mismatchen vi prøver å minske.
+      </p>
+    </section>
+  );
+}
+
+function RhythmSetupPanel({
+  profile,
+  onCancel,
+  onSave,
+}: {
+  profile: RhythmProfile | null;
+  onCancel?: () => void;
+  onSave: (values: RhythmProfileInput) => void;
+}) {
+  const [rhythmFeeling, setRhythmFeeling] = useState<RhythmProfile["rhythmFeeling"]>(profile?.rhythmFeeling || "unstable");
+  const [usualBedtime, setUsualBedtime] = useState(profile?.usualBedtime || "23:30");
+  const [usualWake, setUsualWake] = useState(profile?.usualWake || "07:30");
+  const [desiredWake, setDesiredWake] = useState(profile?.desiredWake || "07:00");
+  const [weekdaySleepTime, setWeekdaySleepTime] = useState(profile?.weekdaySleepTime || profile?.usualBedtime || "23:30");
+  const [weekdayWakeTime, setWeekdayWakeTime] = useState(profile?.weekdayWakeTime || profile?.usualWake || "07:30");
+  const [weekendSleepTime, setWeekendSleepTime] = useState(profile?.weekendSleepTime || profile?.usualBedtime || "00:30");
+  const [weekendWakeTime, setWeekendWakeTime] = useState(profile?.weekendWakeTime || profile?.usualWake || "08:30");
+  const [error, setError] = useState("");
+
+  function submit() {
+    if (![usualBedtime, usualWake, desiredWake, weekdaySleepTime, weekdayWakeTime, weekendSleepTime, weekendWakeTime].every(isValidClockTime)) {
+      setError("Velg gyldige klokkeslett først.");
+      return;
+    }
+
+    setError("");
+    onSave({ rhythmFeeling, usualBedtime, usualWake, desiredWake, weekdaySleepTime, weekdayWakeTime, weekendSleepTime, weekendWakeTime });
+  }
+
+  return (
+    <section className="rounded-[1.4rem] border border-white/[0.14] bg-white/[0.11] px-5 py-5 shadow-2xl shadow-black/15 backdrop-blur-2xl">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">Døgnrytme</p>
+          <h3 className="mt-2 text-2xl font-semibold tracking-normal text-white">La Zen møte rytmen din der den er.</h3>
+        </div>
+        {onCancel ? (
+          <button
+            className="rounded-full border border-white/[0.12] bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white/[0.66] transition hover:bg-white/[0.12] hover:text-white"
+            type="button"
+            onClick={onCancel}
+          >
+            Avbryt
+          </button>
+        ) : null}
+      </div>
+
+      <div className="mt-6 border-t border-white/[0.1] pt-4">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Hvordan føles rytmen nå?</p>
+        <div className="mt-3 grid gap-2">
+          {RHYTHM_FEELING_OPTIONS.map((option) => {
+            const active = rhythmFeeling === option.value;
+            return (
+              <button
+                key={option.value}
+                className={`rounded-[1.1rem] border px-4 py-3 text-left transition ${
+                  active ? "border-white/[0.34] bg-white/[0.16] text-white" : "border-white/[0.09] bg-white/[0.055] text-white/[0.68] hover:bg-white/[0.1] hover:text-white"
+                }`}
+                type="button"
+                onClick={() => setRhythmFeeling(option.value)}
+              >
+                <span className="block text-sm font-semibold">{option.title}</span>
+                <span className="mt-1 block text-xs leading-5 text-white/[0.48]">{option.description}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-4 border-t border-white/[0.1] pt-4 sm:grid-cols-3">
+        <label className="block border-t border-white/[0.1] pt-3">
+          <span className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Legger meg vanligvis</span>
+          <input
+            className="mt-3 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-4 py-3 text-lg font-semibold text-white outline-none focus:border-white/[0.34]"
+            type="time"
+            value={usualBedtime}
+            onChange={(event) => setUsualBedtime(event.target.value)}
+          />
+        </label>
+        <label className="block border-t border-white/[0.1] pt-3">
+          <span className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Våkner vanligvis</span>
+          <input
+            className="mt-3 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-4 py-3 text-lg font-semibold text-white outline-none focus:border-white/[0.34]"
+            type="time"
+            value={usualWake}
+            onChange={(event) => setUsualWake(event.target.value)}
+          />
+        </label>
+        <label className="block border-t border-white/[0.1] pt-3">
+          <span className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Ønsker å våkne</span>
+          <input
+            className="mt-3 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-4 py-3 text-lg font-semibold text-white outline-none focus:border-white/[0.34]"
+            type="time"
+            value={desiredWake}
+            onChange={(event) => setDesiredWake(event.target.value)}
+          />
+        </label>
+      </div>
+
+      <div className="mt-6 border-t border-white/[0.1] pt-4">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Ukedag og helg</p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/[0.38]">Ukedag ned</span>
+              <input
+                className="mt-2 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold text-white outline-none focus:border-white/[0.34]"
+                type="time"
+                value={weekdaySleepTime}
+                onChange={(event) => setWeekdaySleepTime(event.target.value)}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/[0.38]">Ukedag opp</span>
+              <input
+                className="mt-2 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold text-white outline-none focus:border-white/[0.34]"
+                type="time"
+                value={weekdayWakeTime}
+                onChange={(event) => setWeekdayWakeTime(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/[0.38]">Fri ned</span>
+              <input
+                className="mt-2 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold text-white outline-none focus:border-white/[0.34]"
+                type="time"
+                value={weekendSleepTime}
+                onChange={(event) => setWeekendSleepTime(event.target.value)}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/[0.38]">Fri opp</span>
+              <input
+                className="mt-2 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold text-white outline-none focus:border-white/[0.34]"
+                type="time"
+                value={weekendWakeTime}
+                onChange={(event) => setWeekendWakeTime(event.target.value)}
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {error ? <p className="mt-4 text-sm text-amber-100">{error}</p> : null}
+
+      <button className="mt-5 w-full rounded-2xl bg-white/[0.18] px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.24]" type="button" onClick={submit}>
+        Lagre rytme
+      </button>
+    </section>
+  );
+}
+
+function RhythmCompassPanel({
+  anchors,
+  activeSection,
+  steps,
+}: {
+  anchors: RhythmAnchor[];
+  activeSection: SectionTitle;
+  steps: RhythmSystemStep[];
+}) {
+  const activeAnchor = anchors.find((anchor) => anchor.phase === activeSection) || anchors[0];
+
+  return (
+    <section className="rounded-[1.4rem] border border-white/[0.11] bg-white/[0.075] px-5 py-5 backdrop-blur-2xl">
+      <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">Rytmekompass</p>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        {steps.map((step) => (
+          <div
+            key={step.id}
+            className={`rounded-[1rem] border px-3 py-3 ${
+              step.active ? "border-white/[0.26] bg-white/[0.14] text-white" : "border-white/[0.08] bg-black/[0.06] text-white/[0.56]"
+            }`}
+          >
+            <p className="text-sm font-semibold">{step.title}</p>
+            <p className="mt-1 text-xs leading-5 text-white/[0.46]">{step.text}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-[1.1rem] border border-white/[0.09] bg-black/[0.08] px-4 py-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-white/[0.13] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/[0.68]">
+            {activeAnchor.title}
+          </span>
+          <span className="text-sm text-white/[0.5]">{activeAnchor.phase}</span>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-white/[0.58]">{activeAnchor.text}</p>
+        <p className="mt-2 text-sm font-semibold leading-6 text-white/[0.78]">{activeAnchor.action}</p>
+      </div>
+    </section>
+  );
+}
+
+function CalendarContextPanel({ calendar }: { calendar: RhythmCalendarContext }) {
+  return (
+    <section className="rounded-[1.4rem] border border-white/[0.11] bg-white/[0.075] px-5 py-5 backdrop-blur-2xl">
+      <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">Ukedag og fri</p>
+      <div className="mt-4 flex items-start gap-3">
+        <div
+          className={`mt-1 h-3 w-3 rounded-full ${
+            calendar.tone === "rodDag" ? "bg-rose-200" : calendar.tone === "helg" ? "bg-sky-200" : "bg-white/[0.5]"
+          }`}
+        />
+        <div>
+          <p className="text-lg font-semibold text-white">{calendar.label}</p>
+          <p className="mt-1 text-sm leading-6 text-white/[0.62]">{calendar.note}</p>
+          {calendar.detail ? <p className="mt-2 text-sm leading-6 text-white/[0.48]">{calendar.detail}</p> : null}
+        </div>
+      </div>
+      <p className="mt-4 border-t border-white/[0.08] pt-4 text-sm leading-6 text-white/[0.5]">
+        Ferier og egne fridager bør kunne få en egen rytme senere, uten at forsiden blir tyngre.
+      </p>
+    </section>
+  );
+}
+
+function DailyNudgesPanel({ nudges, activeSection }: { nudges: RhythmNudge[]; activeSection: SectionTitle }) {
+  return (
+    <section className="rounded-[1.4rem] border border-white/[0.11] bg-black/[0.08] px-5 py-5 shadow-2xl shadow-black/10 backdrop-blur-2xl">
+      <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">Dagens nudges</p>
+      <div className="mt-4 divide-y divide-white/[0.08]">
+        {nudges.map((nudge) => {
+          const active = nudge.phase === activeSection;
+          return (
+            <div key={nudge.id} className="grid grid-cols-[0.75rem_minmax(0,1fr)] gap-3 py-3 first:pt-0 last:pb-0">
+              <span className={`mt-2 h-2.5 w-2.5 rounded-full ${active ? "bg-white shadow-[0_0_18px_rgba(255,255,255,0.75)]" : "bg-white/[0.28]"}`} />
+              <div className="min-w-0">
+                <p className={`text-sm font-semibold ${active ? "text-white" : "text-white/[0.64]"}`}>{nudge.title}</p>
+                <p className="mt-1 text-sm leading-6 text-white/[0.58]">{nudge.text}</p>
+                <p className="mt-2 rounded-full bg-white/[0.07] px-3 py-1 text-xs font-semibold text-white/[0.56]">Lite steg: {nudge.microStep}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 
@@ -606,7 +1032,7 @@ function WeatherLab({
 
       <div className="mt-4">
         <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-white/[0.5]">Tid</p>
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {timeSamples.map((sample) => {
             const active = activeSection === sample.sectionTitle;
             return (
@@ -733,31 +1159,84 @@ function loadSmallSteps(): SmallStep[] {
     const parsed = JSON.parse(saved);
     if (!Array.isArray(parsed)) return [];
 
-    return parsed.filter(isSmallStep);
+    return parsed.map(normalizeSmallStep).filter((step): step is SmallStep => Boolean(step));
   } catch {
     return [];
   }
 }
 
-function isSmallStep(value: unknown): value is SmallStep {
+function normalizeSmallStep(value: unknown): SmallStep | null {
   const maybe = value as SmallStep;
-  return (
+  const sectionTitle = normalizeSectionTitle(maybe?.sectionTitle);
+  if (
     typeof maybe?.id === "string" &&
-    typeof maybe.text === "string" &&
-    (maybe.scope === "today" || maybe.scope === "week") &&
-    ["Morgen", "Jobb", "Kveld", "Natt"].includes(maybe.sectionTitle) &&
-    typeof maybe.createdAt === "string" &&
-    typeof maybe.done === "boolean"
-  );
+    typeof maybe?.text === "string" &&
+    (maybe?.scope === "today" || maybe?.scope === "week") &&
+    sectionTitle &&
+    typeof maybe?.createdAt === "string" &&
+    typeof maybe?.done === "boolean"
+  ) {
+    return { ...maybe, sectionTitle };
+  }
+
+  return null;
+}
+
+function loadRhythmProfile(): RhythmProfile | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const saved = window.localStorage.getItem(RHYTHM_PROFILE_KEY);
+    if (!saved) return null;
+
+    const parsed = JSON.parse(saved) as Partial<RhythmProfile>;
+    if (
+      typeof parsed.usualBedtime === "string" &&
+      typeof parsed.usualWake === "string" &&
+      typeof parsed.desiredWake === "string" &&
+      isValidClockTime(parsed.usualBedtime) &&
+      isValidClockTime(parsed.usualWake) &&
+      isValidClockTime(parsed.desiredWake)
+    ) {
+      const rhythmFeeling: RhythmProfile["rhythmFeeling"] = RHYTHM_FEELING_OPTIONS.some((option) => option.value === parsed.rhythmFeeling)
+        ? (parsed.rhythmFeeling as RhythmProfile["rhythmFeeling"])
+        : "unstable";
+      const profileSignals = getProfileSignalsFromFeeling(rhythmFeeling);
+      const getSavedTime = (value: unknown, fallback: string) => (typeof value === "string" && isValidClockTime(value) ? value : fallback);
+      const weekdaySleepTime = getSavedTime(parsed.weekdaySleepTime, parsed.usualBedtime);
+      const weekdayWakeTime = getSavedTime(parsed.weekdayWakeTime, parsed.usualWake);
+      const weekendSleepTime = getSavedTime(parsed.weekendSleepTime, parsed.usualBedtime);
+      const weekendWakeTime = getSavedTime(parsed.weekendWakeTime, parsed.usualWake);
+
+      return {
+        ...profileSignals,
+        rhythmFeeling,
+        usualBedtime: parsed.usualBedtime,
+        usualWake: parsed.usualWake,
+        desiredWake: parsed.desiredWake,
+        weekdaySleepTime,
+        weekdayWakeTime,
+        weekendSleepTime,
+        weekendWakeTime,
+        createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : "",
+        updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : "",
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 function placeSmallStep(text: string, fallback: SectionTitle): SectionTitle {
   const normalized = text.toLowerCase();
 
-  if (matchesAny(normalized, ["seng", "senga", "frokost", "morgen", "kaffe", "dusj", "trening", "gå tur"])) return "Morgen";
-  if (matchesAny(normalized, ["jobb", "mail", "e-post", "epost", "møte", "rapport", "søknad", "ringe", "send"])) return "Jobb";
-  if (matchesAny(normalized, ["rydde", "vaske", "kjøkken", "middag", "handle", "søppel", "klesvask", "mat"])) return "Kveld";
-  if (matchesAny(normalized, ["lese", "sove", "puste", "meditere", "journal", "bok", "legge meg"])) return "Natt";
+  if (matchesAny(normalized, ["re opp", "frokost", "morgen", "kaffe", "dusj", "trening", "gå tur", "lys", "stå opp"])) return "Morgen";
+  if (matchesAny(normalized, ["jobb", "mail", "e-post", "epost", "møte", "rapport", "søknad", "ringe", "send", "fokus"])) return "Fokus";
+  if (matchesAny(normalized, ["pause", "reset", "puste", "vann", "strekke", "luft"])) return "Pause";
+  if (matchesAny(normalized, ["rydde", "vaske", "kjøkken", "middag", "handle", "søppel", "klesvask", "mat", "demp"])) return "Kveld";
+  if (matchesAny(normalized, ["seng", "senga", "lese", "sove", "meditere", "journal", "bok", "legge meg", "skjerm"])) return "Natt";
 
   return fallback;
 }
@@ -774,30 +1253,11 @@ function isExpiredSmallStep(step: SmallStep) {
   return Date.now() - created > maxAge;
 }
 
-function getPreviewDate(now: Date, sectionTitle: SectionTitle | null) {
-  if (!sectionTitle) return now;
-
-  const preview = new Date(now);
-  const hourBySection: Record<SectionTitle, number> = {
-    Morgen: 7,
-    Jobb: 12,
-    Kveld: 19,
-    Natt: 23,
-  };
-
-  preview.setHours(hourBySection[sectionTitle], 0, 0, 0);
-  return preview;
-}
-
-function getDayProgress(date: Date) {
-  const minutes = date.getHours() * 60 + date.getMinutes();
-  return Math.min(100, Math.max(0, (minutes / 1440) * 100));
-}
-
 function getSectionIcon(sectionTitle: SectionTitle) {
   const map: Record<SectionTitle, WeatherIcon> = {
     Morgen: "sunrise",
-    Jobb: "briefcase",
+    Fokus: "briefcase",
+    Pause: "cloud",
     Kveld: "evening",
     Natt: "moon",
   };

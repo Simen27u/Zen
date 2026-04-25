@@ -393,6 +393,14 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
   const showClouds = sky === "cloudy" || sky === "partly_cloudy" || sky === "storm";
   const showSun = sky === "clear" || sky === "partly_cloudy";
   const showStars = scene.isNight;
+  const showWind = wind !== "calm";
+  const cloudSpeedA = wind === "windy" ? "26s" : wind === "breezy" ? "34s" : "46s";
+  const cloudSpeedB = wind === "windy" ? "38s" : wind === "breezy" ? "48s" : "60s";
+  const fogSpeedA = wind === "windy" ? "18s" : wind === "breezy" ? "24s" : "30s";
+  const fogSpeedB = wind === "windy" ? "24s" : wind === "breezy" ? "30s" : "38s";
+  const windSpeedA = wind === "windy" ? "12s" : "18s";
+  const windSpeedB = wind === "windy" ? "16s" : "24s";
+  const windOpacity = wind === "windy" ? 0.2 : 0.12;
 
   return (
     <>
@@ -467,19 +475,93 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
       {showFog ? (
         <div className="pointer-events-none fixed inset-0 opacity-[0.76]">
           <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(235,240,246,0.10),rgba(235,240,246,0.05)_36%,rgba(255,255,255,0.09)_70%,rgba(255,255,255,0.04))]" />
-          <div className="absolute inset-x-[-18%] top-[10%] h-32 rounded-full bg-white/[0.16] blur-3xl animate-[fogDrift_22s_ease-in-out_infinite]" />
-          <div className="absolute inset-x-[-16%] top-[32%] h-28 rounded-full bg-white/[0.13] blur-3xl animate-[fogDrift_28s_ease-in-out_infinite_reverse]" />
-          <div className="absolute inset-x-[-22%] top-[43%] h-20 rounded-full bg-white/[0.11] blur-2xl animate-[fogDrift_24s_ease-in-out_infinite]" />
-          <div className="absolute inset-x-[-20%] top-[52%] h-24 rounded-full bg-white/[0.12] blur-3xl animate-[fogDrift_30s_ease-in-out_infinite]" />
-          <div className="absolute inset-x-[-18%] bottom-[12%] h-36 rounded-full bg-white/[0.12] blur-3xl animate-[fogDrift_34s_ease-in-out_infinite_reverse]" />
+          <div
+            className="absolute inset-x-[-18%] top-[8%] h-32 rounded-full bg-white/[0.17] blur-3xl"
+            style={{ animation: `fogFloatA ${fogSpeedA} ease-in-out infinite` }}
+          />
+          <div
+            className="absolute inset-x-[-14%] top-[24%] h-24 rounded-full bg-white/[0.11] blur-[56px]"
+            style={{ animation: `fogFloatB ${fogSpeedB} ease-in-out infinite` }}
+          />
+          <div
+            className="absolute inset-x-[-16%] top-[34%] h-28 rounded-full bg-white/[0.13] blur-3xl"
+            style={{ animation: `fogFloatC ${fogSpeedB} ease-in-out infinite reverse` }}
+          />
+          <div
+            className="absolute inset-x-[-22%] top-[45%] h-20 rounded-full bg-white/[0.11] blur-2xl"
+            style={{ animation: `fogFloatA ${fogSpeedA} ease-in-out infinite reverse` }}
+          />
+          <div
+            className="absolute inset-x-[-20%] top-[56%] h-24 rounded-full bg-white/[0.13] blur-3xl"
+            style={{ animation: `fogFloatB ${fogSpeedA} ease-in-out infinite` }}
+          />
+          <div
+            className="absolute inset-x-[-18%] bottom-[10%] h-36 rounded-full bg-white/[0.12] blur-3xl"
+            style={{ animation: `fogFloatC ${fogSpeedB} ease-in-out infinite` }}
+          />
+          <div
+            className="absolute inset-x-[-10%] bottom-[22%] h-16 rounded-full bg-white/[0.08] blur-2xl"
+            style={{ animation: `fogFloatB ${fogSpeedA} ease-in-out infinite reverse` }}
+          />
         </div>
       ) : null}
 
       {showClouds ? (
-        <div className={`pointer-events-none fixed inset-0 ${sky === "storm" ? "opacity-[0.28]" : "opacity-20"}`}>
-          <div className="absolute left-[-8%] top-[12%] h-24 w-[44%] rounded-full bg-white/[0.08] blur-3xl animate-[cloudDrift_34s_linear_infinite]" />
-          <div className="absolute right-[-10%] top-[28%] h-28 w-[38%] rounded-full bg-white/[0.06] blur-3xl animate-[cloudDrift_44s_linear_infinite_reverse]" />
-          {sky === "storm" ? <div className="absolute inset-x-[10%] top-[18%] h-24 rounded-full bg-black/[0.15] blur-3xl" /> : null}
+        <div className={`pointer-events-none fixed inset-0 ${sky === "storm" ? "opacity-[0.32]" : sky === "cloudy" ? "opacity-25" : "opacity-[0.2]"}`}>
+          <div
+            className="absolute left-[-10%] top-[10%] h-24 w-[42%] rounded-full bg-white/[0.08] blur-3xl"
+            style={{ animation: `cloudFloatA ${cloudSpeedA} linear infinite` }}
+          />
+          <div
+            className="absolute left-[12%] top-[18%] h-20 w-[26%] rounded-full bg-white/[0.055] blur-[52px]"
+            style={{ animation: `cloudFloatB ${cloudSpeedB} linear infinite` }}
+          />
+          <div
+            className="absolute right-[-10%] top-[24%] h-28 w-[38%] rounded-full bg-white/[0.06] blur-3xl"
+            style={{ animation: `cloudFloatC ${cloudSpeedB} linear infinite` }}
+          />
+          <div
+            className="absolute left-[18%] top-[34%] h-16 w-[22%] rounded-full bg-white/[0.04] blur-[48px]"
+            style={{ animation: `cloudFloatB ${cloudSpeedA} linear infinite reverse` }}
+          />
+          {sky === "storm" ? (
+            <>
+              <div className="absolute inset-x-[8%] top-[18%] h-24 rounded-full bg-black/[0.15] blur-3xl" />
+              <div className="absolute right-[4%] top-[30%] h-20 w-[34%] rounded-full bg-black/[0.11] blur-3xl" />
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
+      {showWind ? (
+        <div className="pointer-events-none fixed inset-0 mix-blend-screen">
+          <div
+            className="absolute left-[-26%] top-[18%] h-24 w-[88%] rounded-full blur-[44px]"
+            style={{
+              background:
+                `linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(232,240,248,${windOpacity}) 36%, rgba(245,248,252,${windOpacity * 0.78}) 52%, rgba(255,255,255,0) 100%)`,
+              transform: "rotate(-7deg)",
+              animation: `windSweepA ${windSpeedA} linear infinite`,
+            }}
+          />
+          <div
+            className="absolute left-[-22%] top-[42%] h-20 w-[74%] rounded-full blur-[38px]"
+            style={{
+              background:
+                `linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(220,232,244,${windOpacity * 0.9}) 38%, rgba(243,247,252,${windOpacity * 0.62}) 54%, rgba(255,255,255,0) 100%)`,
+              transform: "rotate(-5deg)",
+              animation: `windSweepB ${windSpeedB} linear infinite`,
+            }}
+          />
+          <div
+            className="absolute left-[-18%] bottom-[18%] h-16 w-[66%] rounded-full blur-[34px]"
+            style={{
+              background:
+                `linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(226,236,246,${windOpacity * 0.76}) 40%, rgba(245,248,252,${windOpacity * 0.46}) 58%, rgba(255,255,255,0) 100%)`,
+              transform: "rotate(-4deg)",
+              animation: `windSweepA ${windSpeedB} linear infinite reverse`,
+            }}
+          />
         </div>
       ) : null}
 
@@ -536,17 +618,52 @@ export default function AmbientBackdrop({ palette, scene }: { palette: Palette; 
           0%, 100% { opacity: 0.58; }
           50% { opacity: 0.88; }
         }
-        @keyframes fogDrift {
-          0%, 100% { transform: translateX(0); }
-          50% { transform: translateX(4%); }
+        @keyframes fogFloatA {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.92; }
+          35% { transform: translate3d(4%, -1.5%, 0) scale(1.04); opacity: 1; }
+          70% { transform: translate3d(-2.5%, 1.2%, 0) scale(0.98); opacity: 0.88; }
         }
-        @keyframes cloudDrift {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(12%); }
+        @keyframes fogFloatB {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.82; }
+          50% { transform: translate3d(5.5%, 2.2%, 0) scale(1.08); opacity: 0.94; }
+        }
+        @keyframes fogFloatC {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.76; }
+          40% { transform: translate3d(-4.5%, -1.2%, 0) scale(1.03); opacity: 0.9; }
+          72% { transform: translate3d(2.5%, 1.6%, 0) scale(0.97); opacity: 0.74; }
+        }
+        @keyframes cloudFloatA {
+          0% { transform: translate3d(0, 0, 0) scale(1); }
+          50% { transform: translate3d(8%, -1.5%, 0) scale(1.03); }
+          100% { transform: translate3d(16%, 0.8%, 0) scale(1); }
+        }
+        @keyframes cloudFloatB {
+          0% { transform: translate3d(0, 0, 0) scale(0.98); }
+          50% { transform: translate3d(6%, 1.8%, 0) scale(1.05); }
+          100% { transform: translate3d(12%, -1%, 0) scale(0.99); }
+        }
+        @keyframes cloudFloatC {
+          0% { transform: translate3d(0, 0, 0) scale(1); }
+          50% { transform: translate3d(-6%, 1.4%, 0) scale(1.04); }
+          100% { transform: translate3d(-12%, -0.8%, 0) scale(1); }
         }
         @keyframes sunPulse {
           0%, 100% { opacity: 0.18; transform: scale(1); }
           50% { opacity: 0.28; transform: scale(1.08); }
+        }
+        @keyframes windSweepA {
+          0% { transform: translate3d(-8%, 0, 0) rotate(-7deg) scaleX(0.94); opacity: 0; }
+          16% { opacity: 1; }
+          50% { transform: translate3d(8%, -1.6%, 0) rotate(-7deg) scaleX(1.04); opacity: 0.88; }
+          84% { opacity: 1; }
+          100% { transform: translate3d(24%, 0.8%, 0) rotate(-7deg) scaleX(0.98); opacity: 0; }
+        }
+        @keyframes windSweepB {
+          0% { transform: translate3d(-6%, 0, 0) rotate(-5deg) scaleX(0.96); opacity: 0; }
+          18% { opacity: 0.9; }
+          55% { transform: translate3d(10%, 1.4%, 0) rotate(-5deg) scaleX(1.06); opacity: 0.72; }
+          88% { opacity: 0.84; }
+          100% { transform: translate3d(22%, -0.6%, 0) rotate(-5deg) scaleX(0.98); opacity: 0; }
         }
       `}</style>
     </>

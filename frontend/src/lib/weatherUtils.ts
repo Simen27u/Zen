@@ -20,9 +20,10 @@ export function formatTime(date: Date) {
 export function getPeriodName(date: Date): SectionTitle {
   const hour = date.getHours();
 
-  if (hour >= 6 && hour < 9) return "Morgen";
-  if (hour >= 9 && hour < 16) return "Jobb";
-  if (hour >= 16 && hour < 22) return "Kveld";
+  if (hour >= 6 && hour < 10) return "Morgen";
+  if (hour >= 10 && hour < 15) return "Fokus";
+  if (hour >= 15 && hour < 18) return "Pause";
+  if (hour >= 18 && hour < 22) return "Kveld";
   return "Natt";
 }
 

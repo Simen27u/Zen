@@ -10,7 +10,8 @@ type TextContext = {
 
 const greetings: Record<SectionTitle, string> = {
   Morgen: "God morgen",
-  Jobb: "God dag",
+  Fokus: "Rolig fokus",
+  Pause: "Pust ut",
   Kveld: "God kveld",
   Natt: "God natt",
 };
@@ -22,17 +23,23 @@ const periodLines: Record<SectionTitle, string[]> = {
     "Gi morgenen litt rom.",
     "Finn ro før fart.",
   ],
-  Jobb: [
+  Fokus: [
     "Hold én ting foran deg.",
     "La fokuset være smalt.",
     "Arbeid i rolige drag.",
     "Velg det viktigste først.",
   ],
+  Pause: [
+    "Et lite reset teller.",
+    "Du trenger ikke fylle hvert mellomrom.",
+    "La kroppen få komme etter.",
+    "Litt luft er nok.",
+  ],
   Kveld: [
-    "Tid for eget rom.",
-    "Litt luft, litt ro.",
     "Dagen kan få slippe taket.",
     "La tempoet falle.",
+    "Gjør kvelden smalere.",
+    "Roligere lys, roligere rytme.",
   ],
   Natt: [
     "Resten kan vente.",
