@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import AmbientBackdrop from "./AmbientBackdrop";
+import { fetchLocalSuggestions } from "../lib/localSuggestions";
 import { buildAmbientLead, getGreeting, getWeatherSummary } from "../lib/textSystem";
 import { getWeatherPalette } from "../lib/weatherPalette";
 import { parseWeatherScene } from "../lib/weatherScene";
@@ -37,10 +38,12 @@ import {
 import { formatDate, formatTime, prettifySymbolCode } from "../lib/weatherUtils";
 import type {
   AppSettings,
+  DayPhase,
   DayType,
   HolidayInfo,
   HolidaysApiResponse,
   LifeArea,
+  LocalSuggestionsApiResponse,
   RhythmProfile,
   SectionTitle,
   SmallStep,
@@ -53,6 +56,7 @@ const DEFAULT_LAT = 59.9139;
 const DEFAULT_LON = 10.7522;
 const WEATHER_URL = import.meta.env.VITE_WEATHER_URL || "http://localhost:3001/api/weather";
 const HOLIDAYS_URL = WEATHER_URL.replace(/\/api\/weather$/, "/api/holidays");
+const LOCAL_SUGGESTIONS_URL = WEATHER_URL.replace(/\/api\/weather$/, "/api/local-suggestions");
 const SMALL_STEPS_KEY = "zen_small_steps";
 
 type RhythmProfileInput = Pick<
@@ -123,6 +127,9 @@ export default function ZenDayUI() {
   const [holidayOverride, setHolidayOverride] = useState<HolidayInfo | null>(null);
   const [testDateOverride, setTestDateOverride] = useState<string>("");
   const [testDayTypeOverride, setTestDayTypeOverride] = useState<DayType | null>(null);
+  const [localSuggestions, setLocalSuggestions] = useState<LocalSuggestionsApiResponse | null>(null);
+  const [isLoadingLocalSuggestions, setIsLoadingLocalSuggestions] = useState<boolean>(false);
+  const [localSuggestionsError, setLocalSuggestionsError] = useState<string>("");
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -342,6 +349,7 @@ export default function ZenDayUI() {
     [displayWeather.symbolCode, activeSectionTitle]
   );
   const sections = useMemo(() => buildRhythmSections(rhythmPlan, activeSectionTitle, dayType, language), [activeSectionTitle, dayType, language, rhythmPlan]);
+  const activeDayPhase = useMemo<DayPhase>(() => sections.find((section) => section.title === activeSectionTitle)?.phase || "day", [activeSectionTitle, sections]);
   const rhythmNudges = useMemo(
     () => buildDailyNudges(rhythmPlan, activeSectionTitle, displayWeather, appSettings.selectedLifeAreas, dayType, language),
     [activeSectionTitle, appSettings.selectedLifeAreas, dayType, displayWeather, language, rhythmPlan]
@@ -357,6 +365,68 @@ export default function ZenDayUI() {
       }),
     [appSettings.holidayAwarenessEnabled, dayType, displayNow, language, rhythmPlan, todayHoliday]
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!appSettings.localSuggestionsEnabled) {
+      setLocalSuggestions(null);
+      setLocalSuggestionsError("");
+      setIsLoadingLocalSuggestions(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    async function loadLocalSuggestions() {
+      try {
+        setIsLoadingLocalSuggestions(true);
+        setLocalSuggestionsError("");
+
+        const data = await fetchLocalSuggestions(LOCAL_SUGGESTIONS_URL, {
+          phase: activeDayPhase,
+          dayType,
+          language,
+          date: baseIsoDate,
+          locationName: displayWeather.sourceLabel,
+          countryCode,
+          weatherSymbol: displayWeather.symbolCode,
+          temperature: displayWeather.temperature,
+          lifeAreas: appSettings.selectedLifeAreas,
+        });
+
+        if (isMounted) {
+          setLocalSuggestions(data);
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        setLocalSuggestions(null);
+        setLocalSuggestionsError(error instanceof Error ? error.message : "Kunne ikke hente lokale forslag");
+      } finally {
+        if (isMounted) {
+          setIsLoadingLocalSuggestions(false);
+        }
+      }
+    }
+
+    void loadLocalSuggestions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    activeDayPhase,
+    appSettings.localSuggestionsEnabled,
+    appSettings.selectedLifeAreas,
+    baseIsoDate,
+    countryCode,
+    dayType,
+    displayWeather.sourceLabel,
+    displayWeather.symbolCode,
+    displayWeather.temperature,
+    language,
+  ]);
+
   const palette = useMemo(() => getWeatherPalette(scene, displayNow), [scene, displayNow]);
   const weatherIcon = getWeatherIcon(displayWeather.symbolCode, activeSectionTitle);
   const isAnyPanelOpen = isTestPanelOpen || isSmallStepOpen || isRhythmDrawerOpen || isSettingsOpen;
@@ -502,6 +572,14 @@ export default function ZenDayUI() {
               </div>
             </div>
 
+            <LocalSuggestionsPanel
+              data={localSuggestions}
+              enabled={appSettings.localSuggestionsEnabled}
+              error={localSuggestionsError}
+              isLoading={isLoadingLocalSuggestions}
+              language={language}
+            />
+
             {weatherError ? (
               <div className="mt-7 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100/85">
                 {language === "en"
@@ -620,7 +698,7 @@ export default function ZenDayUI() {
         <button
           className="fixed inset-0 z-20 cursor-default bg-black/5 backdrop-blur-[1px]"
           type="button"
-          aria-label="Lukk panel"
+          aria-label={language === "en" ? "Close panel" : "Lukk panel"}
           onClick={() => {
             setIsTestPanelOpen(false);
             setIsSmallStepOpen(false);
@@ -631,7 +709,7 @@ export default function ZenDayUI() {
       ) : null}
 
       <SettingsDrawerToggle isOpen={isSettingsOpen} language={language} onToggle={() => setIsSettingsOpen((open) => !open)} />
-      <RhythmDrawerToggle isOpen={isRhythmDrawerOpen} onToggle={() => setIsRhythmDrawerOpen((open) => !open)} />
+      <RhythmDrawerToggle isOpen={isRhythmDrawerOpen} language={language} onToggle={() => setIsRhythmDrawerOpen((open) => !open)} />
 
       <DevTestPanel
         activeSample={weatherOverride?.symbolCode || ""}
@@ -641,6 +719,7 @@ export default function ZenDayUI() {
         holidayOverride={holidayOverride}
         isOpen={isTestPanelOpen}
         language={language}
+        localSuggestionsEnabled={appSettings.localSuggestionsEnabled}
         testDate={testDateOverride}
         onClose={() => setIsTestPanelOpen(false)}
         onOpenRhythm={() => {
@@ -670,6 +749,7 @@ export default function ZenDayUI() {
         onSelectSection={setSectionOverride}
         onSelect={(sample) => setWeatherOverride(sample)}
         onToggleHoliday={handleToggleTestHoliday}
+        onToggleLocalSuggestions={() => setAppSettings((current) => ({ ...current, localSuggestionsEnabled: !current.localSuggestionsEnabled }))}
         onToggle={() => setIsTestPanelOpen((open) => !open)}
         settings={appSettings}
       />
@@ -772,7 +852,10 @@ function SettingsDrawer({
         : "Zen bruker dette til å forstå hverdager, fridager og en mykere helgerytme.",
     holidays: language === "en" ? "Holidays" : "Helligdager",
     local: language === "en" ? "Local suggestions" : "Lokale forslag",
-    comingLater: language === "en" ? "Experimental, coming later." : "Eksperimentelt, kommer senere.",
+    localHint:
+      language === "en"
+        ? "Experimental contextual ideas. Gemini can help if the backend has a key, with local fallback otherwise."
+        : "Eksperimentelle kontekstforslag. Gemini kan hjelpe hvis backend har nøkkel, med lokal reserve ellers.",
     country: language === "en" ? "Country" : "Land",
     today: language === "en" ? "Today" : "I dag",
     close: language === "en" ? "Close settings" : "Lukk innstillinger",
@@ -930,26 +1013,103 @@ function SettingsDrawer({
 
         <section className="rounded-[1.4rem] border border-white/[0.1] bg-black/[0.08] px-5 py-5 backdrop-blur-2xl">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.45]">{copy.local}</p>
-          <p className="mt-2 text-sm leading-6 text-white/[0.55]">{copy.comingLater}</p>
-          <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.045] px-4 py-3 text-sm text-white/[0.45]">
+          <p className="mt-2 text-sm leading-6 text-white/[0.55]">{copy.localHint}</p>
+          <button
+            className={`mt-4 flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
+              settings.localSuggestionsEnabled
+                ? "border-white/[0.3] bg-white/[0.15] text-white"
+                : "border-white/[0.08] bg-white/[0.045] text-white/[0.55] hover:bg-white/[0.09]"
+            }`}
+            type="button"
+            aria-pressed={settings.localSuggestionsEnabled}
+            onClick={() => onChange((current) => ({ ...current, localSuggestionsEnabled: !current.localSuggestionsEnabled }))}
+          >
             <span>{language === "en" ? "Nearby ideas" : "Ideer i nærheten"}</span>
-            <span>{language === "en" ? "Off" : "Av"}</span>
-          </div>
+            <span className="font-semibold">{settings.localSuggestionsEnabled ? (language === "en" ? "On" : "På") : language === "en" ? "Off" : "Av"}</span>
+          </button>
         </section>
       </div>
     </aside>
   );
 }
 
-function RhythmDrawerToggle({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+function LocalSuggestionsPanel({
+  data,
+  enabled,
+  error,
+  isLoading,
+  language,
+}: {
+  data: LocalSuggestionsApiResponse | null;
+  enabled: boolean;
+  error: string;
+  isLoading: boolean;
+  language: SupportedLanguage;
+}) {
+  if (!enabled) return null;
+
+  const sourceLabel = data?.source === "gemini" ? "Gemini" : language === "en" ? "Local fallback" : "Lokal reserve";
+  const suggestions = data?.suggestions || [];
+
+  return (
+    <section className="mt-7 rounded-[1.35rem] border border-white/[0.09] bg-black/[0.08] px-4 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.45]">{language === "en" ? "Nearby" : "I nærheten"}</p>
+        <span className="rounded-full bg-white/[0.09] px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-white/[0.48]">
+          {sourceLabel}
+        </span>
+      </div>
+
+      {isLoading ? (
+        <p className="mt-3 text-sm leading-6 text-white/[0.58]">{language === "en" ? "Finding one or two calm ideas." : "Finner én eller to rolige idéer."}</p>
+      ) : error ? (
+        <p className="mt-3 text-sm leading-6 text-white/[0.58]">
+          {language === "en" ? "Local suggestions are resting right now." : "Lokale forslag hviler akkurat nå."}
+        </p>
+      ) : suggestions.length ? (
+        <div className="mt-3 space-y-3">
+          {suggestions.map((suggestion) => (
+            <article key={suggestion.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.055] px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-sm font-semibold leading-5 text-white">{suggestion.title}</h3>
+                <span className="shrink-0 rounded-full bg-white/[0.08] px-2.5 py-1 text-[0.62rem] font-semibold text-white/[0.48]">
+                  {getLocalCategoryLabel(suggestion.category, language)}
+                </span>
+              </div>
+              {suggestion.description ? <p className="mt-2 text-xs leading-5 text-white/[0.58]">{suggestion.description}</p> : null}
+            </article>
+          ))}
+          {data?.note ? <p className="text-xs leading-5 text-white/[0.38]">{data.note}</p> : null}
+        </div>
+      ) : (
+        <p className="mt-3 text-sm leading-6 text-white/[0.58]">{language === "en" ? "Nothing needs to be added here now." : "Det trenger ikke legges til noe her nå."}</p>
+      )}
+    </section>
+  );
+}
+
+function getLocalCategoryLabel(category: LocalSuggestionsApiResponse["suggestions"][number]["category"], language: SupportedLanguage) {
+  const labels: Record<string, Record<SupportedLanguage, string>> = {
+    event: { no: "Ting", en: "Event" },
+    nature: { no: "Ute", en: "Nature" },
+    social: { no: "Kontakt", en: "Social" },
+    culture: { no: "Kultur", en: "Culture" },
+    movement: { no: "Bevegelse", en: "Movement" },
+    quiet_place: { no: "Ro", en: "Quiet" },
+  };
+
+  return labels[category]?.[language] || labels.quiet_place[language];
+}
+
+function RhythmDrawerToggle({ isOpen, language, onToggle }: { isOpen: boolean; language: SupportedLanguage; onToggle: () => void }) {
   return (
     <button
       className={`fixed right-4 top-1/2 z-30 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/[0.14] bg-black/[0.18] text-xl font-semibold leading-none text-white/[0.78] shadow-2xl shadow-black/20 backdrop-blur-2xl transition hover:bg-white/[0.12] hover:text-white ${
         isOpen ? "opacity-0 pointer-events-none" : "opacity-100"
       }`}
       type="button"
-      aria-label="Åpne rytmepanel"
-      title="Rytme"
+      aria-label={language === "en" ? "Open rhythm panel" : "Åpne rytmepanel"}
+      title={language === "en" ? "Rhythm" : "Rytme"}
       onClick={onToggle}
     >
       <span className="text-lg leading-none" aria-hidden="true">&lt;</span>
@@ -1483,6 +1643,7 @@ function DevTestPanel({
   holidayOverride,
   isOpen,
   language,
+  localSuggestionsEnabled,
   testDate,
   onClose,
   onOpenRhythm,
@@ -1497,6 +1658,7 @@ function DevTestPanel({
   onSelect,
   onToggle,
   onToggleHoliday,
+  onToggleLocalSuggestions,
   settings,
 }: {
   activeSample: string;
@@ -1506,6 +1668,7 @@ function DevTestPanel({
   holidayOverride: HolidayInfo | null;
   isOpen: boolean;
   language: SupportedLanguage;
+  localSuggestionsEnabled: boolean;
   onClose: () => void;
   onOpenRhythm: () => void;
   onOpenSettings: () => void;
@@ -1519,6 +1682,7 @@ function DevTestPanel({
   onSelect: (sample: (typeof weatherSamples)[number]) => void;
   onToggle: () => void;
   onToggleHoliday: () => void;
+  onToggleLocalSuggestions: () => void;
   settings: AppSettings;
   testDate: string;
 }) {
@@ -1538,6 +1702,7 @@ function DevTestPanel({
     settings: language === "en" ? "Settings" : "Innstillinger",
     rhythm: language === "en" ? "Rhythm" : "Rytme",
     smallStep: language === "en" ? "Small step" : "Lite steg",
+    local: language === "en" ? "Local ideas" : "Lokale ideer",
     testHoliday: language === "en" ? "Test free day" : "Testfridag",
   };
 
@@ -1650,10 +1815,15 @@ function DevTestPanel({
               { label: copy.settings, onClick: onOpenSettings },
               { label: copy.rhythm, onClick: onOpenRhythm },
               { label: copy.smallStep, onClick: onOpenSmallStep },
+              { label: copy.local, onClick: onToggleLocalSuggestions, active: localSuggestionsEnabled },
             ].map((option) => (
               <button
                 key={option.label}
-                className="min-h-[3rem] rounded-2xl border border-white/[0.1] bg-white/[0.07] px-2 py-3 text-center text-xs font-semibold leading-tight text-white/[0.72] transition hover:bg-white/[0.12] hover:text-white"
+                className={`min-h-[3rem] rounded-2xl border px-2 py-3 text-center text-xs font-semibold leading-tight transition ${
+                  option.active
+                    ? "border-white/[0.38] bg-white/[0.18] text-white"
+                    : "border-white/[0.1] bg-white/[0.07] text-white/[0.72] hover:bg-white/[0.12] hover:text-white"
+                }`}
                 type="button"
                 onClick={option.onClick}
               >

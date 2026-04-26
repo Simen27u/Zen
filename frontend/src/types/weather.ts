@@ -116,6 +116,8 @@ export type HolidaysApiResponse = {
   holidays: HolidayInfo[];
 };
 
+export type LocalOpportunityCategory = "event" | "nature" | "social" | "culture" | "movement" | "quiet_place";
+
 export type LocalOpportunity = {
   id: string;
   title: string;
@@ -124,8 +126,27 @@ export type LocalOpportunity = {
   distanceMeters?: number;
   startsAt?: string;
   source?: string;
-  category: "event" | "nature" | "social" | "culture" | "movement" | "quiet_place";
+  category: LocalOpportunityCategory;
   rhythmFit: Exclude<DayPhase, "night">;
+};
+
+export type LocalSuggestionsApiRequest = {
+  phase: DayPhase;
+  dayType: DayType;
+  language: SupportedLanguage;
+  date: string;
+  locationName?: string;
+  countryCode?: string;
+  weatherSymbol?: string;
+  temperature?: number | null;
+  lifeAreas: LifeArea[];
+};
+
+export type LocalSuggestionsApiResponse = {
+  source: "gemini" | "fallback";
+  generatedAt: string;
+  note: string;
+  suggestions: LocalOpportunity[];
 };
 
 export type Palette = {

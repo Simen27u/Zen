@@ -64,12 +64,22 @@ Helligdag skal brukes som rytmekontekst:
 
 ## Lokale forslag
 
-Ikke bygg ekte lokalt arrangementssøk nå.
+Første testversjon er et eksperimentelt kontekstlag, ikke ekte arrangementssøk.
 
-Legg bare grunnlag og settings-valg:
-- `localSuggestionsEnabled: false`
-- vis som eksperimentelt / kommer senere
-- ingen eksterne kall
+Backend-endepunkt:
+
+```txt
+POST /api/local-suggestions
+```
+
+Backend kan prøve Gemini hvis `GEMINI_API_KEY` finnes som miljøvariabel. Hvis nøkkel mangler eller Gemini feiler, bruker Zen lokal fallback.
+
+Viktige grenser:
+- frontend kaller aldri Gemini direkte
+- API-nøkkel skal ikke legges i Git
+- forslagene skal ikke late som de er bekreftede live-arrangementer
+- teksten skal merkes som eksperimentell/kontekstuell
+- `localSuggestionsEnabled` kan slås på i innstillinger eller testpanelet
 
 ## Viktige grenser
 

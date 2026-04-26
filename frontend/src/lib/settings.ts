@@ -199,7 +199,7 @@ function normalizeAppSettings(value: unknown): AppSettings {
     workDays,
     aiTextEnabled: Boolean(maybe.aiTextEnabled),
     holidayAwarenessEnabled: true,
-    localSuggestionsEnabled: false,
+    localSuggestionsEnabled: Boolean(maybe.localSuggestionsEnabled),
     dayTypeOverride,
   };
 }
