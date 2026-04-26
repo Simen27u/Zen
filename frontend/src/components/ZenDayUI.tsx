@@ -550,6 +550,13 @@ export default function ZenDayUI() {
               <p className="mt-8 break-words text-3xl leading-tight text-white/[0.94] sm:text-4xl lg:text-[2.55rem]">
                 {buildAmbientLead(activeSectionTitle, displayWeather, isLoadingWeather && !weatherOverride, language)}
               </p>
+              <LocalSuggestionLine
+                data={localSuggestions}
+                enabled={appSettings.localSuggestionsEnabled}
+                error={localSuggestionsError}
+                isLoading={isLoadingLocalSuggestions}
+                language={language}
+              />
             </div>
           </section>
 
@@ -571,14 +578,6 @@ export default function ZenDayUI() {
                 </div>
               </div>
             </div>
-
-            <LocalSuggestionsPanel
-              data={localSuggestions}
-              enabled={appSettings.localSuggestionsEnabled}
-              error={localSuggestionsError}
-              isLoading={isLoadingLocalSuggestions}
-              language={language}
-            />
 
             {weatherError ? (
               <div className="mt-7 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100/85">
@@ -1033,7 +1032,7 @@ function SettingsDrawer({
   );
 }
 
-function LocalSuggestionsPanel({
+function LocalSuggestionLine({
   data,
   enabled,
   error,
@@ -1048,57 +1047,26 @@ function LocalSuggestionsPanel({
 }) {
   if (!enabled) return null;
 
-  const sourceLabel = data?.source === "gemini" ? "Gemini" : language === "en" ? "Local fallback" : "Lokal reserve";
-  const suggestions = data?.suggestions || [];
+  if (isLoading) {
+    return (
+      <p className="mt-5 text-sm leading-6 text-white/[0.56]">
+        <span className="font-semibold text-white/[0.66]">{language === "en" ? "Nearby:" : "I nærheten:"}</span>{" "}
+        {language === "en" ? "finding a calm idea." : "finner en rolig idé."}
+      </p>
+    );
+  }
+
+  if (error) return null;
+
+  const suggestionTitles = (data?.suggestions || []).map((suggestion) => suggestion.title.trim()).filter(Boolean).slice(0, 2);
+  if (!suggestionTitles.length) return null;
 
   return (
-    <section className="mt-7 rounded-[1.35rem] border border-white/[0.09] bg-black/[0.08] px-4 py-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.45]">{language === "en" ? "Nearby" : "I nærheten"}</p>
-        <span className="rounded-full bg-white/[0.09] px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-white/[0.48]">
-          {sourceLabel}
-        </span>
-      </div>
-
-      {isLoading ? (
-        <p className="mt-3 text-sm leading-6 text-white/[0.58]">{language === "en" ? "Finding one or two calm ideas." : "Finner én eller to rolige idéer."}</p>
-      ) : error ? (
-        <p className="mt-3 text-sm leading-6 text-white/[0.58]">
-          {language === "en" ? "Local suggestions are resting right now." : "Lokale forslag hviler akkurat nå."}
-        </p>
-      ) : suggestions.length ? (
-        <div className="mt-3 space-y-3">
-          {suggestions.map((suggestion) => (
-            <article key={suggestion.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.055] px-4 py-3">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="text-sm font-semibold leading-5 text-white">{suggestion.title}</h3>
-                <span className="shrink-0 rounded-full bg-white/[0.08] px-2.5 py-1 text-[0.62rem] font-semibold text-white/[0.48]">
-                  {getLocalCategoryLabel(suggestion.category, language)}
-                </span>
-              </div>
-              {suggestion.description ? <p className="mt-2 text-xs leading-5 text-white/[0.58]">{suggestion.description}</p> : null}
-            </article>
-          ))}
-          {data?.note ? <p className="text-xs leading-5 text-white/[0.38]">{data.note}</p> : null}
-        </div>
-      ) : (
-        <p className="mt-3 text-sm leading-6 text-white/[0.58]">{language === "en" ? "Nothing needs to be added here now." : "Det trenger ikke legges til noe her nå."}</p>
-      )}
-    </section>
+    <p className="mt-5 max-w-xl text-sm leading-6 text-white/[0.58]">
+      <span className="font-semibold text-white/[0.68]">{language === "en" ? "Nearby:" : "I nærheten:"}</span>{" "}
+      {suggestionTitles.join(" · ")}
+    </p>
   );
-}
-
-function getLocalCategoryLabel(category: LocalSuggestionsApiResponse["suggestions"][number]["category"], language: SupportedLanguage) {
-  const labels: Record<string, Record<SupportedLanguage, string>> = {
-    event: { no: "Ting", en: "Event" },
-    nature: { no: "Ute", en: "Nature" },
-    social: { no: "Kontakt", en: "Social" },
-    culture: { no: "Kultur", en: "Culture" },
-    movement: { no: "Bevegelse", en: "Movement" },
-    quiet_place: { no: "Ro", en: "Quiet" },
-  };
-
-  return labels[category]?.[language] || labels.quiet_place[language];
 }
 
 function RhythmDrawerToggle({ isOpen, language, onToggle }: { isOpen: boolean; language: SupportedLanguage; onToggle: () => void }) {
