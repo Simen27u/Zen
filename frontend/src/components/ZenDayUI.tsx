@@ -1,8 +1,19 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import AmbientBackdrop from "./AmbientBackdrop";
 import { buildAmbientLead, getGreeting, getWeatherSummary } from "../lib/textSystem";
 import { getWeatherPalette } from "../lib/weatherPalette";
 import { parseWeatherScene } from "../lib/weatherScene";
+import {
+  getDayTypeLabel,
+  getLanguageChoiceLabel,
+  getSectionStatusLabel,
+  getSectionTitleLabel,
+  getWeekdayShortLabel,
+  LIFE_AREA_OPTIONS,
+  loadAppSettings,
+  resolveAppLanguage,
+  saveAppSettings,
+} from "../lib/settings";
 import {
   RHYTHM_FEELING_OPTIONS,
   RHYTHM_PROFILE_KEY,
@@ -10,7 +21,6 @@ import {
   buildRhythmAnchors,
   buildRhythmPlan,
   buildRhythmSections,
-  buildRhythmSystemSteps,
   getCurrentRhythmPhase,
   getPhasePreviewDate,
   getPhaseState,
@@ -23,18 +33,27 @@ import {
   type RhythmAnchor,
   type RhythmNudge,
   type RhythmPlan,
-  type RhythmSystemStep,
 } from "../lib/rhythm";
 import { formatDate, formatTime, prettifySymbolCode } from "../lib/weatherUtils";
-import type { RhythmProfile, SectionTitle, SmallStep, WeatherApiResponse, WeatherViewModel } from "../types/weather";
+import type {
+  AppSettings,
+  DayType,
+  HolidayInfo,
+  HolidaysApiResponse,
+  LifeArea,
+  RhythmProfile,
+  SectionTitle,
+  SmallStep,
+  SupportedLanguage,
+  WeatherApiResponse,
+  WeatherViewModel,
+} from "../types/weather";
 
 const DEFAULT_LAT = 59.9139;
 const DEFAULT_LON = 10.7522;
 const WEATHER_URL = import.meta.env.VITE_WEATHER_URL || "http://localhost:3001/api/weather";
+const HOLIDAYS_URL = WEATHER_URL.replace(/\/api\/weather$/, "/api/holidays");
 const SMALL_STEPS_KEY = "zen_small_steps";
-const DESKTOP_SCENE_WIDTH = 1280;
-const DESKTOP_SCENE_HEIGHT = 860;
-const DESKTOP_SCENE_GUTTER = 48;
 
 type RhythmProfileInput = Pick<
   RhythmProfile,
@@ -51,15 +70,15 @@ const fallbackWeather: WeatherViewModel = {
 };
 
 const weatherSamples = [
-  { label: "Klarvær", symbolCode: "clearsky_day", temperature: 18 },
-  { label: "Delvis skyet", symbolCode: "partlycloudy_day", temperature: 19 },
-  { label: "Overskyet", symbolCode: "cloudy", temperature: 14 },
-  { label: "Tåke", symbolCode: "fog", temperature: 8 },
-  { label: "Regn", symbolCode: "rain", temperature: 9 },
-  { label: "Kraftig regn", symbolCode: "heavyrain", temperature: 7 },
-  { label: "Snø", symbolCode: "snow", temperature: -2 },
-  { label: "Sludd", symbolCode: "sleet", temperature: 2 },
-  { label: "Storm", symbolCode: "heavyrainandthunder", temperature: 11 },
+  { labels: { no: "Klarvær", en: "Clear sky" }, symbolCode: "clearsky_day", temperature: 18 },
+  { labels: { no: "Delvis skyet", en: "Partly cloudy" }, symbolCode: "partlycloudy_day", temperature: 19 },
+  { labels: { no: "Overskyet", en: "Cloudy" }, symbolCode: "cloudy", temperature: 14 },
+  { labels: { no: "Tåke", en: "Fog" }, symbolCode: "fog", temperature: 8 },
+  { labels: { no: "Regn", en: "Rain" }, symbolCode: "rain", temperature: 9 },
+  { labels: { no: "Kraftig regn", en: "Heavy rain" }, symbolCode: "heavyrain", temperature: 7 },
+  { labels: { no: "Snø", en: "Snow" }, symbolCode: "snow", temperature: -2 },
+  { labels: { no: "Sludd", en: "Sleet" }, symbolCode: "sleet", temperature: 2 },
+  { labels: { no: "Storm", en: "Storm" }, symbolCode: "heavyrainandthunder", temperature: 11 },
 ] as const;
 
 
@@ -74,8 +93,8 @@ function buildSourceLabel(locationName: string | undefined, source: string) {
 const timeSamples = [
   { label: "Live", sectionTitle: null },
   { label: "Morgen", sectionTitle: "Morgen" },
-  { label: "Fokus", sectionTitle: "Fokus" },
-  { label: "Pause", sectionTitle: "Pause" },
+  { label: "Formiddag", sectionTitle: "Dag" },
+  { label: "Ettermiddag", sectionTitle: "Ettermiddag" },
   { label: "Kveld", sectionTitle: "Kveld" },
   { label: "Natt", sectionTitle: "Natt" },
 ] as const satisfies ReadonlyArray<{ label: string; sectionTitle: SectionTitle | null }>;
@@ -88,17 +107,22 @@ export default function ZenDayUI() {
   const [isLoadingWeather, setIsLoadingWeather] = useState<boolean>(true);
   const [weatherOverride, setWeatherOverride] = useState<(typeof weatherSamples)[number] | null>(null);
   const [sectionOverride, setSectionOverride] = useState<SectionTitle | null>(null);
-  const [isWeatherLabOpen, setIsWeatherLabOpen] = useState<boolean>(false);
+  const [isTestPanelOpen, setIsTestPanelOpen] = useState<boolean>(false);
   const [smallSteps, setSmallSteps] = useState<SmallStep[]>(() => loadSmallSteps());
   const [isSmallStepOpen, setIsSmallStepOpen] = useState<boolean>(false);
   const [rhythmProfile, setRhythmProfile] = useState<RhythmProfile | null>(() => loadRhythmProfile());
+  const [appSettings, setAppSettings] = useState<AppSettings>(() => loadAppSettings());
   const [isRhythmSetupOpen, setIsRhythmSetupOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return !window.localStorage.getItem(RHYTHM_PROFILE_KEY);
   });
   const [isRhythmDrawerOpen, setIsRhythmDrawerOpen] = useState<boolean>(false);
-  const [isDesktopSceneMode, setIsDesktopSceneMode] = useState<boolean>(false);
-  const [desktopSceneScale, setDesktopSceneScale] = useState<number>(1);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [holidaysData, setHolidaysData] = useState<HolidaysApiResponse | null>(null);
+  const [holidayError, setHolidayError] = useState<string>("");
+  const [holidayOverride, setHolidayOverride] = useState<HolidayInfo | null>(null);
+  const [testDateOverride, setTestDateOverride] = useState<string>("");
+  const [testDayTypeOverride, setTestDayTypeOverride] = useState<DayType | null>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -193,6 +217,10 @@ export default function ZenDayUI() {
   }, [smallSteps]);
 
   useEffect(() => {
+    saveAppSettings(appSettings);
+  }, [appSettings]);
+
+  useEffect(() => {
     if (typeof window.history.scrollRestoration === "string") {
       window.history.scrollRestoration = "manual";
     }
@@ -203,64 +231,82 @@ export default function ZenDayUI() {
   useEffect(() => {
     function closePanelsOnEscape(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
-      setIsWeatherLabOpen(false);
+      setIsTestPanelOpen(false);
       setIsSmallStepOpen(false);
       setIsRhythmDrawerOpen(false);
+      setIsSettingsOpen(false);
     }
 
     window.addEventListener("keydown", closePanelsOnEscape);
     return () => window.removeEventListener("keydown", closePanelsOnEscape);
   }, []);
 
+  const countryCode = (weatherData?.meta?.countryCode || "NO").toUpperCase();
+  const language = useMemo(() => resolveAppLanguage(appSettings, countryCode), [appSettings, countryCode]);
+  const baseNow = useMemo(() => buildTestDateTime(now, testDateOverride), [now, testDateOverride]);
+  const rhythmPlan = useMemo(() => buildRhythmPlan(rhythmProfile), [rhythmProfile]);
+  const holidayYear = baseNow.getFullYear();
+  const baseIsoDate = useMemo(() => toLocalIsoDate(baseNow), [baseNow]);
+
   useEffect(() => {
-    const desktopSceneQuery = window.matchMedia("(min-width: 1024px) and (pointer: fine)");
-    const viewport = window.visualViewport;
+    let isMounted = true;
 
-    function updateDesktopSceneMode() {
-      const enabled = desktopSceneQuery.matches;
-      setIsDesktopSceneMode(enabled);
-
-      if (!enabled) {
-        setDesktopSceneScale(1);
-        return;
-      }
-
-      const viewportWidth = viewport?.width ?? window.innerWidth;
-      const viewportHeight = viewport?.height ?? window.innerHeight;
-      const availableWidth = Math.max(viewportWidth - DESKTOP_SCENE_GUTTER, 0);
-      const availableHeight = Math.max(viewportHeight - DESKTOP_SCENE_GUTTER, 0);
-      const nextScale = Math.min(availableWidth / DESKTOP_SCENE_WIDTH, availableHeight / DESKTOP_SCENE_HEIGHT);
-
-      setDesktopSceneScale(clampNumber(nextScale, 0.72, 1.2));
+    if (!appSettings.holidayAwarenessEnabled) {
+      setHolidaysData(null);
+      setHolidayError("");
+      return () => {
+        isMounted = false;
+      };
     }
 
-    updateDesktopSceneMode();
+    async function loadHolidays() {
+      try {
+        setHolidayError("");
+        const response = await fetch(`${HOLIDAYS_URL}?country=${encodeURIComponent(countryCode)}&year=${holidayYear}`);
+        if (!response.ok) {
+          throw new Error("Kunne ikke hente helligdager");
+        }
 
-    desktopSceneQuery.addEventListener?.("change", updateDesktopSceneMode);
-    viewport?.addEventListener("resize", updateDesktopSceneMode);
-    window.addEventListener("resize", updateDesktopSceneMode);
+        const data = (await response.json()) as HolidaysApiResponse;
+        if (isMounted) {
+          setHolidaysData(data);
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        const message = error instanceof Error ? error.message : "Kunne ikke hente helligdager";
+        setHolidayError(message);
+        setHolidaysData(null);
+      }
+    }
+
+    void loadHolidays();
 
     return () => {
-      desktopSceneQuery.removeEventListener?.("change", updateDesktopSceneMode);
-      viewport?.removeEventListener("resize", updateDesktopSceneMode);
-      window.removeEventListener("resize", updateDesktopSceneMode);
+      isMounted = false;
     };
-  }, []);
+  }, [appSettings.holidayAwarenessEnabled, countryCode, holidayYear]);
 
-
-  const dateLabel = useMemo(() => formatDate(now), [now]);
-  const rhythmPlan = useMemo(() => buildRhythmPlan(rhythmProfile), [rhythmProfile]);
-  const liveSectionTitle = useMemo(() => getCurrentRhythmPhase(now, rhythmPlan), [now, rhythmPlan]);
+  const calendarHoliday = useMemo(
+    () => (appSettings.holidayAwarenessEnabled ? holidaysData?.holidays.find((holiday) => holiday.date === baseIsoDate) || null : null),
+    [appSettings.holidayAwarenessEnabled, holidaysData, baseIsoDate]
+  );
+  const todayHoliday = holidayOverride || calendarHoliday;
+  const dayType = useMemo(
+    () => testDayTypeOverride || inferDayType(baseNow, Boolean(todayHoliday && appSettings.holidayAwarenessEnabled), appSettings.workDays),
+    [appSettings.holidayAwarenessEnabled, appSettings.workDays, baseNow, testDayTypeOverride, todayHoliday]
+  );
+  const liveSectionTitle = useMemo(() => getCurrentRhythmPhase(baseNow, rhythmPlan, dayType), [baseNow, dayType, rhythmPlan]);
   const activeSectionTitle = sectionOverride || liveSectionTitle;
-  const displayNow = useMemo(() => getPhasePreviewDate(now, sectionOverride, rhythmPlan), [now, sectionOverride, rhythmPlan]);
-  const displayTimeLabel = useMemo(() => formatTime(displayNow), [displayNow]);
-  const dayProgress = useMemo(() => getRhythmProgress(displayNow, rhythmPlan), [displayNow, rhythmPlan]);
+  const displayNow = useMemo(() => getPhasePreviewDate(baseNow, sectionOverride, rhythmPlan, dayType), [baseNow, dayType, sectionOverride, rhythmPlan]);
+  const dateLabel = useMemo(() => formatDate(displayNow, language), [displayNow, language]);
+  const displayTimeLabel = useMemo(() => formatTime(displayNow, language), [displayNow, language]);
+  const dayProgress = useMemo(() => getRhythmProgress(displayNow, rhythmPlan, dayType), [dayType, displayNow, rhythmPlan]);
 
   const liveWeather: WeatherViewModel = weatherData?.weather
     ? {
-        sourceLabel: weatherData.meta?.locationName || userLocation?.label || "Ukjent område",
+        sourceLabel: weatherData.meta?.locationName || userLocation?.label || (language === "en" ? "Unknown area" : "Ukjent område"),
         temperature: weatherData.weather.temperature ?? null,
-        conditionLabel: prettifySymbolCode(weatherData.weather.symbolCode),
+        conditionLabel: prettifySymbolCode(weatherData.weather.symbolCode, language),
         vibe: weatherData.weather.vibe || fallbackWeather.vibe,
         text: weatherData.weather.text || fallbackWeather.text,
         symbolCode: weatherData.weather.symbolCode || fallbackWeather.symbolCode,
@@ -268,19 +314,25 @@ export default function ZenDayUI() {
     : {
         ...fallbackWeather,
         sourceLabel: weatherData?.meta?.locationName || userLocation?.label || fallbackWeather.sourceLabel,
+        conditionLabel: prettifySymbolCode(fallbackWeather.symbolCode, language),
+        vibe: getWeatherSummary(fallbackWeather, language),
+        text: language === "en" ? `${fallbackWeather.temperature}° outside and ${prettifySymbolCode(fallbackWeather.symbolCode, language).toLowerCase()}.` : fallbackWeather.text,
       };
 
   const displayWeather: WeatherViewModel = weatherOverride
     ? {
         sourceLabel: liveWeather.sourceLabel,
         temperature: weatherOverride.temperature,
-        conditionLabel: prettifySymbolCode(weatherOverride.symbolCode),
+        conditionLabel: weatherOverride.labels[language],
         vibe: getWeatherSummary({
           ...liveWeather,
           temperature: weatherOverride.temperature,
           symbolCode: weatherOverride.symbolCode,
-        }),
-        text: `${weatherOverride.temperature}° ute og ${prettifySymbolCode(weatherOverride.symbolCode).toLowerCase()}.`,
+        }, language),
+        text:
+          language === "en"
+            ? `${weatherOverride.temperature}° outside and ${prettifySymbolCode(weatherOverride.symbolCode, language).toLowerCase()}.`
+            : `${weatherOverride.temperature}° ute og ${prettifySymbolCode(weatherOverride.symbolCode, language).toLowerCase()}.`,
         symbolCode: weatherOverride.symbolCode,
       }
     : liveWeather;
@@ -289,30 +341,25 @@ export default function ZenDayUI() {
     () => parseWeatherScene(displayWeather.symbolCode, activeSectionTitle),
     [displayWeather.symbolCode, activeSectionTitle]
   );
-  const sections = useMemo(() => buildRhythmSections(rhythmPlan, activeSectionTitle), [activeSectionTitle, rhythmPlan]);
-  const rhythmNudges = useMemo(() => buildDailyNudges(rhythmPlan, activeSectionTitle, displayWeather), [activeSectionTitle, displayWeather, rhythmPlan]);
-  const rhythmAnchors = useMemo(() => buildRhythmAnchors(rhythmPlan, activeSectionTitle, displayWeather), [activeSectionTitle, displayWeather, rhythmPlan]);
-  const rhythmSystemSteps = useMemo(() => buildRhythmSystemSteps(rhythmPlan), [rhythmPlan]);
-  const rhythmCalendar = useMemo(() => getRhythmCalendarContext(displayNow, rhythmPlan), [displayNow, rhythmPlan]);
+  const sections = useMemo(() => buildRhythmSections(rhythmPlan, activeSectionTitle, dayType, language), [activeSectionTitle, dayType, language, rhythmPlan]);
+  const rhythmNudges = useMemo(
+    () => buildDailyNudges(rhythmPlan, activeSectionTitle, displayWeather, appSettings.selectedLifeAreas, dayType, language),
+    [activeSectionTitle, appSettings.selectedLifeAreas, dayType, displayWeather, language, rhythmPlan]
+  );
+  const rhythmAnchors = useMemo(() => buildRhythmAnchors(rhythmPlan, activeSectionTitle, displayWeather, language), [activeSectionTitle, displayWeather, language, rhythmPlan]);
+  const rhythmCalendar = useMemo(
+    () =>
+      getRhythmCalendarContext(displayNow, rhythmPlan, {
+        dayType,
+        holiday: todayHoliday,
+        holidayAwarenessEnabled: appSettings.holidayAwarenessEnabled,
+        language,
+      }),
+    [appSettings.holidayAwarenessEnabled, dayType, displayNow, language, rhythmPlan, todayHoliday]
+  );
   const palette = useMemo(() => getWeatherPalette(scene, displayNow), [scene, displayNow]);
   const weatherIcon = getWeatherIcon(displayWeather.symbolCode, activeSectionTitle);
-  const isAnyPanelOpen = isWeatherLabOpen || isSmallStepOpen || isRhythmDrawerOpen;
-  const desktopSceneFrameStyle = useMemo<CSSProperties | undefined>(() => {
-    if (!isDesktopSceneMode) return undefined;
-
-    return {
-      width: `${Math.round(DESKTOP_SCENE_WIDTH * desktopSceneScale)}px`,
-      height: `${Math.round(DESKTOP_SCENE_HEIGHT * desktopSceneScale)}px`,
-    };
-  }, [desktopSceneScale, isDesktopSceneMode]);
-  const desktopSceneStyle = useMemo<CSSProperties | undefined>(() => {
-    if (!isDesktopSceneMode) return undefined;
-
-    return {
-      transform: `translate(-50%, -50%) scale(${desktopSceneScale})`,
-      transformOrigin: "center center",
-    };
-  }, [desktopSceneScale, isDesktopSceneMode]);
+  const isAnyPanelOpen = isTestPanelOpen || isSmallStepOpen || isRhythmDrawerOpen || isSettingsOpen;
 
   function handleAddSmallStep(text: string, scope: SmallStep["scope"]) {
     const trimmed = text.trim();
@@ -353,6 +400,44 @@ export default function ZenDayUI() {
     setIsRhythmSetupOpen(false);
   }
 
+  function handleSelectTestLanguage(nextLanguage: SupportedLanguage | "auto") {
+    setAppSettings((current) =>
+      nextLanguage === "auto"
+        ? { ...current, languageSource: "browser" }
+        : { ...current, language: nextLanguage, languageSource: "manual" }
+    );
+  }
+
+  function handleSelectTestDayType(nextDayType: DayType | "auto") {
+    setTestDayTypeOverride(nextDayType === "auto" ? null : nextDayType);
+  }
+
+  function handleToggleTestHoliday() {
+    if (holidayOverride) {
+      setHolidayOverride(null);
+      return;
+    }
+
+    setAppSettings((settings) => ({ ...settings, holidayAwarenessEnabled: true }));
+    setHolidayOverride({
+      date: baseIsoDate,
+      name: language === "en" ? "Test free day" : "Testfridag",
+      type: "DEV_HOLIDAY",
+    });
+  }
+
+  function handleResetTestTools() {
+    setWeatherOverride(null);
+    setSectionOverride(null);
+    setHolidayOverride(null);
+    setTestDateOverride("");
+    setTestDayTypeOverride(null);
+    setAppSettings((current) => {
+      const { dayTypeOverride: _dayTypeOverride, ...rest } = current;
+      return { ...rest, languageSource: "browser" };
+    });
+  }
+
   return (
     <div
       className="relative min-h-[100svh] overflow-x-hidden text-white transition-[background] duration-[12000ms] ease-linear"
@@ -360,17 +445,14 @@ export default function ZenDayUI() {
     >
       <AmbientBackdrop palette={palette} scene={scene} />
 
-      <div className="relative z-10 w-full lg:flex lg:min-h-screen lg:items-center lg:justify-center lg:px-6 lg:py-6">
-        <div className="w-full lg:relative" style={desktopSceneFrameStyle}>
-          <div
-            className="mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-8 lg:absolute lg:left-1/2 lg:top-1/2 lg:h-[860px] lg:w-[1280px] lg:min-h-0 lg:max-w-none lg:overflow-hidden lg:px-10 lg:py-9"
-            style={desktopSceneStyle}
-          >
+      <div className="relative z-10 w-full">
+        <div className="w-full">
+          <div className="mx-auto flex min-h-[100svh] w-full max-w-[88rem] flex-col px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-8 lg:px-8 lg:py-9">
         <header className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 lg:pt-4">
             <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/[0.48]">Zen</p>
             <h1 className="mt-5 text-5xl font-semibold leading-none tracking-normal text-white sm:text-6xl lg:text-7xl">
-              {getGreeting(activeSectionTitle)}
+              {getGreeting(activeSectionTitle, language)}
             </h1>
           </div>
 
@@ -382,7 +464,7 @@ export default function ZenDayUI() {
           </div>
         </header>
 
-        <main className="mt-10 grid gap-5 lg:mt-12 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.65fr)]">
+        <main className="mt-10 grid gap-5 lg:mt-12 lg:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.55fr)]">
           <section className="relative overflow-hidden rounded-[2rem] border border-white/[0.12] bg-white/[0.11] px-6 py-7 shadow-2xl shadow-black/15 backdrop-blur-2xl sm:px-8 sm:py-8 lg:min-h-[20.5rem]">
             <div className="absolute inset-y-0 right-0 w-[55%] opacity-80">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_42%,rgba(255,214,164,0.36),transparent_34%),radial-gradient(circle_at_45%_58%,rgba(255,255,255,0.14),transparent_42%)]" />
@@ -393,10 +475,10 @@ export default function ZenDayUI() {
             <div className="relative max-w-2xl pr-0 sm:pr-6">
               <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.25em] text-white/[0.58]">
                 <SparkleIcon className="h-4 w-4" />
-                Nå
+                {language === "en" ? "Now" : "Nå"}
               </p>
-              <p className="mt-8 text-3xl leading-tight text-white/[0.94] sm:text-4xl lg:text-[2.55rem]">
-                {buildAmbientLead(activeSectionTitle, displayWeather, isLoadingWeather && !weatherOverride)}
+              <p className="mt-8 break-words text-3xl leading-tight text-white/[0.94] sm:text-4xl lg:text-[2.55rem]">
+                {buildAmbientLead(activeSectionTitle, displayWeather, isLoadingWeather && !weatherOverride, language)}
               </p>
             </div>
           </section>
@@ -406,41 +488,43 @@ export default function ZenDayUI() {
               <div className="grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)] items-start gap-4">
                 <PinIcon className="mt-1 h-8 w-8 text-white/[0.62]" />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/[0.44]">Område</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/[0.44]">{language === "en" ? "Area" : "Område"}</p>
                   <h2 className="mt-2 truncate text-3xl font-medium tracking-normal">{displayWeather.sourceLabel}</h2>
                 </div>
               </div>
               <div className="grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)] items-start gap-4">
                 <WeatherGlyph icon={weatherIcon} className="mt-1 h-8 w-8 text-white/[0.86]" />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/[0.44]">Vær</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/[0.44]">{language === "en" ? "Weather" : "Vær"}</p>
                   <p className="mt-2 text-3xl font-semibold leading-none text-white">{isLoadingWeather && !weatherOverride ? "..." : `${displayWeather.temperature ?? "-"}°`}</p>
-                  <p className="mt-2 truncate text-base text-white/[0.72]">{isLoadingWeather && !weatherOverride ? "Laster vær" : displayWeather.conditionLabel}</p>
+                  <p className="mt-2 truncate text-base text-white/[0.72]">{isLoadingWeather && !weatherOverride ? (language === "en" ? "Loading weather" : "Laster vær") : displayWeather.conditionLabel}</p>
                 </div>
               </div>
             </div>
 
             {weatherError ? (
               <div className="mt-7 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100/85">
-                Været kunne ikke hentes akkurat nå. Et lagret sted, standardsted eller reservevær vises i mellomtiden.
+                {language === "en"
+                  ? "Weather could not be loaded right now. Zen is showing a saved area, default area, or fallback weather meanwhile."
+                  : "Været kunne ikke hentes akkurat nå. Et lagret sted, standardsted eller reservevær vises i mellomtiden."}
               </div>
             ) : null}
           </section>
         </main>
 
         <section className="mt-10 lg:mt-12">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-3 xl:gap-4">
             {sections.map((section) => {
               const state = getPhaseState(section.title, activeSectionTitle);
               const active = state === "active";
               const complete = state === "complete";
-              const icon = getSectionIcon(section.title);
+              const icon = getSectionIcon(section.title, dayType);
               const visibleSteps = smallSteps.filter((step) => step.sectionTitle === section.title && !isExpiredSmallStep(step)).slice(0, 3);
 
               return (
                 <section
                   key={section.title}
-                  className={`rounded-[1.65rem] border px-5 py-5 backdrop-blur-2xl transition-all duration-500 ${
+                  className={`rounded-[1.65rem] border px-4 py-4 backdrop-blur-2xl transition-all duration-500 ${
                     active
                       ? "border-white/[0.34] bg-white/[0.16] shadow-2xl shadow-black/15"
                       : complete
@@ -448,23 +532,23 @@ export default function ZenDayUI() {
                         : "border-white/[0.1] bg-black/[0.08]"
                   }`}
                 >
-                  <div className="flex min-w-0 items-start justify-between gap-4">
-                    <div className="flex min-w-0 items-center gap-4">
-                      <div className={`grid h-12 w-12 place-items-center rounded-full ${active ? "bg-white/[0.16]" : "bg-white/[0.09]"}`}>
-                        <WeatherGlyph icon={icon} className="h-6 w-6 text-white/[0.86]" />
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                      <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${active ? "bg-white/[0.16]" : "bg-white/[0.09]"}`}>
+                        <WeatherGlyph icon={icon} className="h-4.5 w-4.5 text-white/[0.86]" />
                       </div>
-                      <div className="min-w-0">
-                        <h3 className="text-xl font-semibold">{section.title}</h3>
-                        <p className="mt-1 text-sm text-white/[0.52]">{section.time}</p>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="whitespace-nowrap text-base font-semibold leading-tight 2xl:text-lg">{getSectionTitleLabel(section.title, language)}</h3>
+                        <p className="mt-1 text-sm leading-5 text-white/[0.52]">{section.time}</p>
+                        <span
+                          className={`mt-3 inline-flex rounded-full px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.14em] ${
+                            active ? "bg-white/[0.18] text-white/90" : complete ? "bg-white/[0.06] text-white/[0.38]" : "bg-white/[0.09] text-white/[0.5]"
+                          }`}
+                        >
+                          {getSectionStatusLabel(section.status, language)}
+                        </span>
                       </div>
                     </div>
-                    <span
-                      className={`rounded-full px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.18em] ${
-                        active ? "bg-white/[0.18] text-white/90" : complete ? "bg-white/[0.06] text-white/[0.38]" : "bg-white/[0.09] text-white/[0.5]"
-                      }`}
-                    >
-                      {section.status}
-                    </span>
                   </div>
                   {active ? (
                     <div className="mt-6 space-y-2">
@@ -517,11 +601,11 @@ export default function ZenDayUI() {
 
           <p className="mx-auto mt-3 flex max-w-full flex-wrap items-center justify-center gap-3 text-center text-base text-white/[0.56]">
             <LeafIcon className="h-5 w-5" />
-            <span>Små steg hver dag. Mer enn nok over tid.</span>
+            <span>{language === "en" ? "Small steps each day. More than enough over time." : "Små steg hver dag. Mer enn nok over tid."}</span>
             <button
               className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/[0.14] bg-white/[0.08] text-xl font-light leading-none text-white/[0.72] transition hover:bg-white/[0.14] hover:text-white"
               type="button"
-              aria-label="Legg til et lite steg"
+              aria-label={language === "en" ? "Add a small step" : "Legg til et lite steg"}
               onClick={() => setIsSmallStepOpen((open) => !open)}
             >
               +
@@ -538,32 +622,73 @@ export default function ZenDayUI() {
           type="button"
           aria-label="Lukk panel"
           onClick={() => {
-            setIsWeatherLabOpen(false);
+            setIsTestPanelOpen(false);
             setIsSmallStepOpen(false);
             setIsRhythmDrawerOpen(false);
+            setIsSettingsOpen(false);
           }}
         />
       ) : null}
 
+      <SettingsDrawerToggle isOpen={isSettingsOpen} language={language} onToggle={() => setIsSettingsOpen((open) => !open)} />
       <RhythmDrawerToggle isOpen={isRhythmDrawerOpen} onToggle={() => setIsRhythmDrawerOpen((open) => !open)} />
 
-      <WeatherLab
+      <DevTestPanel
         activeSample={weatherOverride?.symbolCode || ""}
         activeSection={sectionOverride}
-        isOpen={isWeatherLabOpen}
-        onClose={() => setIsWeatherLabOpen(false)}
+        dayType={dayType}
+        dayTypeOverride={testDayTypeOverride}
+        holidayOverride={holidayOverride}
+        isOpen={isTestPanelOpen}
+        language={language}
+        testDate={testDateOverride}
+        onClose={() => setIsTestPanelOpen(false)}
+        onOpenRhythm={() => {
+          setIsRhythmDrawerOpen(true);
+          setIsSettingsOpen(false);
+          setIsSmallStepOpen(false);
+        }}
+        onOpenSettings={() => {
+          setIsSettingsOpen(true);
+          setIsRhythmDrawerOpen(false);
+          setIsSmallStepOpen(false);
+        }}
+        onOpenSmallStep={() => {
+          setIsSmallStepOpen(true);
+          setIsRhythmDrawerOpen(false);
+          setIsSettingsOpen(false);
+        }}
         onReset={() => {
           setWeatherOverride(null);
           setSectionOverride(null);
+          setTestDateOverride("");
         }}
+        onResetAll={handleResetTestTools}
+        onSelectDayType={handleSelectTestDayType}
+        onSelectDate={setTestDateOverride}
+        onSelectLanguage={handleSelectTestLanguage}
         onSelectSection={setSectionOverride}
         onSelect={(sample) => setWeatherOverride(sample)}
-        onToggle={() => setIsWeatherLabOpen((open) => !open)}
+        onToggleHoliday={handleToggleTestHoliday}
+        onToggle={() => setIsTestPanelOpen((open) => !open)}
+        settings={appSettings}
       />
       <SmallStepPanel
         isOpen={isSmallStepOpen}
         onAdd={handleAddSmallStep}
         onClose={() => setIsSmallStepOpen(false)}
+      />
+      <SettingsDrawer
+        countryCode={countryCode}
+        dayType={dayType}
+        holiday={todayHoliday}
+        holidayError={holidayError}
+        holidaysSource={holidaysData?.source}
+        isOpen={isSettingsOpen}
+        language={language}
+        settings={appSettings}
+        onChange={setAppSettings}
+        onClose={() => setIsSettingsOpen(false)}
       />
       <RhythmDrawer
         activeSection={activeSectionTitle}
@@ -572,6 +697,7 @@ export default function ZenDayUI() {
         hasProfile={Boolean(rhythmProfile)}
         isOpen={isRhythmDrawerOpen}
         isSetupOpen={isRhythmSetupOpen}
+        language={language}
         nudges={rhythmNudges}
         onClose={() => setIsRhythmDrawerOpen(false)}
         onEdit={() => setIsRhythmSetupOpen(true)}
@@ -579,9 +705,239 @@ export default function ZenDayUI() {
         onSetupCancel={rhythmProfile ? () => setIsRhythmSetupOpen(false) : undefined}
         plan={rhythmPlan}
         profile={rhythmProfile}
-        systemSteps={rhythmSystemSteps}
       />
     </div>
+  );
+}
+
+function SettingsDrawerToggle({ isOpen, language, onToggle }: { isOpen: boolean; language: SupportedLanguage; onToggle: () => void }) {
+  return (
+    <button
+      className={`fixed right-4 top-4 z-30 grid h-11 w-11 place-items-center rounded-full border border-white/[0.14] bg-black/[0.18] text-white/[0.78] shadow-2xl shadow-black/20 backdrop-blur-2xl transition hover:bg-white/[0.12] hover:text-white ${
+        isOpen ? "opacity-0 pointer-events-none" : "opacity-100"
+      }`}
+      type="button"
+      aria-label={language === "en" ? "Open settings" : "Åpne innstillinger"}
+      title={language === "en" ? "Settings" : "Innstillinger"}
+      onClick={onToggle}
+    >
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 7h14" />
+        <path d="M5 17h14" />
+        <path d="M9 7a2 2 0 1 0-4 0 2 2 0 0 0 4 0Z" fill="currentColor" stroke="none" />
+        <path d="M19 17a2 2 0 1 0-4 0 2 2 0 0 0 4 0Z" fill="currentColor" stroke="none" />
+      </svg>
+    </button>
+  );
+}
+
+function SettingsDrawer({
+  countryCode,
+  dayType,
+  holiday,
+  holidayError,
+  holidaysSource,
+  isOpen,
+  language,
+  settings,
+  onChange,
+  onClose,
+}: {
+  countryCode: string;
+  dayType: DayType;
+  holiday: HolidayInfo | null;
+  holidayError: string;
+  holidaysSource?: HolidaysApiResponse["source"];
+  isOpen: boolean;
+  language: SupportedLanguage;
+  settings: AppSettings;
+  onChange: Dispatch<SetStateAction<AppSettings>>;
+  onClose: () => void;
+}) {
+  if (!isOpen) return null;
+
+  const maxLifeAreasSelected = settings.selectedLifeAreas.length >= 3;
+  const workDayOrder = [1, 2, 3, 4, 5, 6, 0] as const;
+  const copy = {
+    title: language === "en" ? "Settings" : "Innstillinger",
+    subtitle: language === "en" ? "Quiet choices that shape Zen without crowding the main screen." : "Rolige valg som former Zen uten å fylle forsiden.",
+    language: language === "en" ? "Language" : "Språk",
+    rhythmSupport: language === "en" ? "Rhythm support" : "Rytmestøtte",
+    lifeAreas: language === "en" ? "Life areas" : "Livsområder",
+    max3: language === "en" ? "Choose up to 3." : "Velg maks 3.",
+    workDays: language === "en" ? "Work days" : "Arbeidsdager",
+    workDaysHint:
+      language === "en"
+        ? "Zen uses this to understand weekdays, free days, and a softer weekend rhythm."
+        : "Zen bruker dette til å forstå hverdager, fridager og en mykere helgerytme.",
+    holidays: language === "en" ? "Holidays" : "Helligdager",
+    local: language === "en" ? "Local suggestions" : "Lokale forslag",
+    comingLater: language === "en" ? "Experimental, coming later." : "Eksperimentelt, kommer senere.",
+    country: language === "en" ? "Country" : "Land",
+    today: language === "en" ? "Today" : "I dag",
+    close: language === "en" ? "Close settings" : "Lukk innstillinger",
+  };
+
+  function setLanguageAuto() {
+    onChange((current) => ({ ...current, languageSource: "browser", language }));
+  }
+
+  function setManualLanguage(nextLanguage: SupportedLanguage) {
+    onChange((current) => ({ ...current, language: nextLanguage, languageSource: "manual" }));
+  }
+
+  function toggleLifeArea(lifeArea: LifeArea) {
+    onChange((current) => {
+      const selected = current.selectedLifeAreas.includes(lifeArea);
+      if (selected) {
+        return { ...current, selectedLifeAreas: current.selectedLifeAreas.filter((value) => value !== lifeArea) };
+      }
+
+      if (current.selectedLifeAreas.length >= 3) return current;
+      return { ...current, selectedLifeAreas: [...current.selectedLifeAreas, lifeArea] };
+    });
+  }
+
+  function toggleWorkDay(day: number) {
+    onChange((current) => {
+      const selected = current.workDays.includes(day);
+      const nextWorkDays = selected ? current.workDays.filter((value) => value !== day) : [...current.workDays, day];
+      const orderedWorkDays = workDayOrder.filter((value) => nextWorkDays.includes(value));
+
+      if (!orderedWorkDays.length) return current;
+      return { ...current, workDays: orderedWorkDays };
+    });
+  }
+
+  return (
+    <aside className="fixed bottom-0 right-0 top-0 z-30 w-[min(31rem,calc(100vw-1rem))] overflow-y-auto border-l border-white/[0.14] bg-black/[0.22] px-5 py-5 text-white shadow-2xl shadow-black/30 backdrop-blur-2xl sm:px-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.48]">Zen</p>
+          <h2 className="mt-2 text-3xl font-semibold tracking-normal">{copy.title}</h2>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-white/[0.55]">{copy.subtitle}</p>
+        </div>
+        <button
+          className="grid h-11 w-11 place-items-center rounded-full border border-white/[0.14] bg-white/[0.08] text-2xl leading-none text-white/[0.74] transition hover:bg-white/[0.14] hover:text-white"
+          type="button"
+          aria-label={copy.close}
+          onClick={onClose}
+        >
+          &gt;
+        </button>
+      </div>
+
+      <div className="mt-6 space-y-4">
+        <section className="rounded-[1.4rem] border border-white/[0.12] bg-white/[0.08] px-5 py-5 backdrop-blur-2xl">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.45]">{copy.language}</p>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {[
+              { label: "Auto", active: settings.languageSource !== "manual", onClick: setLanguageAuto },
+              { label: "Norsk", active: settings.languageSource === "manual" && settings.language === "no", onClick: () => setManualLanguage("no") },
+              { label: "English", active: settings.languageSource === "manual" && settings.language === "en", onClick: () => setManualLanguage("en") },
+            ].map((option) => (
+              <button
+                key={option.label}
+                className={`rounded-2xl border px-3 py-3 text-sm font-semibold transition ${
+                  option.active ? "border-white/[0.34] bg-white/[0.16] text-white" : "border-white/[0.09] bg-white/[0.055] text-white/[0.65] hover:bg-white/[0.1]"
+                }`}
+                type="button"
+                onClick={option.onClick}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-xs leading-5 text-white/[0.48]">
+            {getLanguageChoiceLabel(settings.languageSource, language)} · {copy.country}: {countryCode}
+          </p>
+        </section>
+
+        <section className="rounded-[1.4rem] border border-white/[0.12] bg-white/[0.08] px-5 py-5 backdrop-blur-2xl">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.45]">{copy.lifeAreas}</p>
+              <p className="mt-2 text-sm text-white/[0.52]">{copy.max3}</p>
+            </div>
+            <span className="rounded-full bg-white/[0.1] px-3 py-1 text-xs font-bold text-white/[0.58]">
+              {settings.selectedLifeAreas.length}/3
+            </span>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {LIFE_AREA_OPTIONS.map((option) => {
+              const active = settings.selectedLifeAreas.includes(option.value);
+              const disabled = !active && maxLifeAreasSelected;
+              return (
+                <button
+                  key={option.value}
+                  className={`min-h-[5.25rem] rounded-[1.1rem] border px-3 py-3 text-left transition ${
+                    active
+                      ? "border-white/[0.34] bg-white/[0.16] text-white"
+                      : disabled
+                        ? "border-white/[0.06] bg-black/[0.08] text-white/[0.32]"
+                        : "border-white/[0.09] bg-white/[0.055] text-white/[0.66] hover:bg-white/[0.1]"
+                  }`}
+                  type="button"
+                  onClick={() => toggleLifeArea(option.value)}
+                >
+                  <span className="block text-sm font-semibold">{option.labels[language]}</span>
+                  <span className="mt-1 block text-xs leading-5 text-white/[0.46]">{option.descriptions[language]}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="rounded-[1.4rem] border border-white/[0.12] bg-white/[0.08] px-5 py-5 backdrop-blur-2xl">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.45]">{copy.workDays}</p>
+          <p className="mt-2 text-sm leading-6 text-white/[0.55]">{copy.workDaysHint}</p>
+          <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-7">
+            {workDayOrder.map((day) => {
+              const active = settings.workDays.includes(day);
+              return (
+                <button
+                  key={day}
+                  className={`rounded-2xl border px-2 py-3 text-sm font-semibold transition ${
+                    active ? "border-white/[0.34] bg-white/[0.16] text-white" : "border-white/[0.09] bg-white/[0.055] text-white/[0.55] hover:bg-white/[0.1]"
+                  }`}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => toggleWorkDay(day)}
+                >
+                  {getWeekdayShortLabel(day, language)}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-xs leading-5 text-white/[0.48]">
+            {copy.today}: {getDayTypeLabel(dayType, language)}
+            {holiday ? ` · ${holiday.name}` : ""}
+          </p>
+        </section>
+
+        <section className="rounded-[1.4rem] border border-white/[0.12] bg-white/[0.08] px-5 py-5 backdrop-blur-2xl">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.45]">{copy.holidays}</p>
+          <p className="mt-2 text-sm leading-6 text-white/[0.55]">
+            {language === "en"
+              ? "Zen treats public holidays as a softer free-day context automatically."
+              : "Zen behandler røde dager som en mykere fridagskontekst automatisk."}
+          </p>
+          <p className="mt-3 text-xs leading-5 text-white/[0.45]">
+            {holidaysSource ? `Kilde: ${holidaysSource}` : language === "en" ? "Source: waiting for backend" : "Kilde: venter på backend"}
+            {holidayError ? ` · ${holidayError}` : ""}
+          </p>
+        </section>
+
+        <section className="rounded-[1.4rem] border border-white/[0.1] bg-black/[0.08] px-5 py-5 backdrop-blur-2xl">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.45]">{copy.local}</p>
+          <p className="mt-2 text-sm leading-6 text-white/[0.55]">{copy.comingLater}</p>
+          <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.045] px-4 py-3 text-sm text-white/[0.45]">
+            <span>{language === "en" ? "Nearby ideas" : "Ideer i nærheten"}</span>
+            <span>{language === "en" ? "Off" : "Av"}</span>
+          </div>
+        </section>
+      </div>
+    </aside>
   );
 }
 
@@ -608,6 +964,7 @@ function RhythmDrawer({
   hasProfile,
   isOpen,
   isSetupOpen,
+  language,
   nudges,
   onClose,
   onEdit,
@@ -615,7 +972,6 @@ function RhythmDrawer({
   onSetupCancel,
   plan,
   profile,
-  systemSteps,
 }: {
   activeSection: SectionTitle;
   anchors: RhythmAnchor[];
@@ -623,6 +979,7 @@ function RhythmDrawer({
   hasProfile: boolean;
   isOpen: boolean;
   isSetupOpen: boolean;
+  language: SupportedLanguage;
   nudges: RhythmNudge[];
   onClose: () => void;
   onEdit: () => void;
@@ -630,7 +987,6 @@ function RhythmDrawer({
   onSetupCancel?: () => void;
   plan: RhythmPlan;
   profile: RhythmProfile | null;
-  systemSteps: RhythmSystemStep[];
 }) {
   if (!isOpen) return null;
 
@@ -639,12 +995,12 @@ function RhythmDrawer({
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.48]">Zen</p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-normal">Rytme</h2>
+          <h2 className="mt-2 text-3xl font-semibold tracking-normal">{language === "en" ? "Rhythm" : "Rytme"}</h2>
         </div>
         <button
           className="grid h-11 w-11 place-items-center rounded-full border border-white/[0.14] bg-white/[0.08] text-2xl leading-none text-white/[0.74] transition hover:bg-white/[0.14] hover:text-white"
           type="button"
-          aria-label="Lukk rytmepanel"
+          aria-label={language === "en" ? "Close rhythm panel" : "Lukk rytmepanel"}
           onClick={onClose}
         >
           &gt;
@@ -653,102 +1009,274 @@ function RhythmDrawer({
 
       <div className="mt-6 space-y-4">
         {isSetupOpen ? (
-          <RhythmSetupPanel profile={profile} onCancel={onSetupCancel} onSave={onSave} />
+          <RhythmSetupPanel language={language} profile={profile} onCancel={onSetupCancel} onSave={onSave} />
         ) : (
-          <RhythmPlanCard plan={plan} hasProfile={hasProfile} onEdit={onEdit} />
+          <RhythmPlanCard
+            activeSection={activeSection}
+            anchors={anchors}
+            calendar={calendar}
+            hasProfile={hasProfile}
+            language={language}
+            nudges={nudges}
+            plan={plan}
+            onEdit={onEdit}
+          />
         )}
-        <RhythmCompassPanel anchors={anchors} activeSection={activeSection} steps={systemSteps} />
-        <CalendarContextPanel calendar={calendar} />
-        <DailyNudgesPanel activeSection={activeSection} nudges={nudges} />
       </div>
     </aside>
   );
 }
 
 function RhythmPlanCard({
+  activeSection,
+  anchors,
+  calendar,
+  nudges,
+  language,
   plan,
   hasProfile,
   onEdit,
 }: {
+  activeSection: SectionTitle;
+  anchors: RhythmAnchor[];
+  calendar: RhythmCalendarContext;
+  nudges: RhythmNudge[];
+  language: SupportedLanguage;
   plan: RhythmPlan;
   hasProfile: boolean;
   onEdit: () => void;
 }) {
+  const activeAnchor = anchors.find((anchor) => anchor.phase === activeSection) || anchors[0];
+  const activeNudge = nudges.find((nudge) => nudge.phase === activeSection) || nudges[0];
+  const guide = getRhythmGuideCopy(plan, calendar, hasProfile, language);
+
   return (
-    <section className="rounded-[1.4rem] border border-white/[0.12] bg-white/[0.09] px-5 py-5 shadow-2xl shadow-black/10 backdrop-blur-2xl">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">Døgnrytme</p>
-          <h3 className="mt-2 text-2xl font-semibold tracking-normal text-white">Tilbake i rytme, litt etter litt.</h3>
+    <section className="space-y-4">
+      <div className="rounded-[1.4rem] border border-white/[0.12] bg-white/[0.09] px-5 py-5 shadow-2xl shadow-black/10 backdrop-blur-2xl">
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">{guide.nowLabel}</p>
+        <h3 className="mt-2 text-2xl font-semibold leading-tight tracking-normal text-white">{guide.nowTitle}</h3>
+        <p className="mt-4 text-base leading-7 text-white/[0.72]">{guide.nowText}</p>
+        <p className="mt-4 rounded-2xl border border-white/[0.08] bg-black/[0.08] px-4 py-3 text-sm leading-6 text-white/[0.56]">
+          {guide.currentPicture}
+        </p>
+        {!hasProfile ? <p className="mt-3 text-sm leading-6 text-white/[0.48]">{guide.empty}</p> : null}
+      </div>
+
+      <div className="rounded-[1.4rem] border border-white/[0.12] bg-white/[0.08] px-5 py-5 backdrop-blur-2xl">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">{guide.anchorLabel}</p>
+          <span className="rounded-full bg-white/[0.11] px-3 py-1 text-xs font-semibold text-white/[0.58]">
+            {getSectionTitleLabel(activeAnchor.phase, language)}
+          </span>
         </div>
+        <h3 className="mt-4 text-xl font-semibold leading-tight text-white">{activeAnchor.title}</h3>
+        <p className="mt-3 text-sm leading-6 text-white/[0.62]">{activeAnchor.text}</p>
+        <p className="mt-4 rounded-2xl bg-white/[0.09] px-4 py-3 text-sm font-semibold leading-6 text-white/[0.8]">
+          {activeAnchor.action}
+        </p>
+        {activeNudge ? (
+          <p className="mt-3 text-sm leading-6 text-white/[0.56]">
+            <span className="font-semibold text-white/[0.72]">{guide.smallStepLabel}:</span> {activeNudge.microStep}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="rounded-[1.4rem] border border-white/[0.1] bg-black/[0.08] px-5 py-5 backdrop-blur-2xl">
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">{guide.adjustLabel}</p>
+        <h3 className="mt-2 text-xl font-semibold leading-tight text-white">{guide.adjustTitle}</h3>
+        <p className="mt-3 text-sm leading-6 text-white/[0.58]">{guide.adjustText}</p>
         <button
-          className="rounded-full border border-white/[0.14] bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/[0.74] transition hover:bg-white/[0.14] hover:text-white"
+          className="mt-4 rounded-full border border-white/[0.14] bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/[0.74] transition hover:bg-white/[0.14] hover:text-white"
           type="button"
           onClick={onEdit}
         >
-          Juster
+          {guide.adjustButton}
         </button>
-      </div>
 
-      <p className="mt-5 max-w-2xl text-base leading-7 text-white/[0.74]">{plan.feedback}</p>
-      <div className="mt-4 rounded-[1.15rem] border border-white/[0.09] bg-black/[0.08] px-4 py-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-white/[0.13] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/[0.72]">
-            {plan.systemFocusLabel}
-          </span>
-          <span className="text-sm text-white/[0.58]">{plan.rhythmStateLabel}</span>
-          <span className="text-sm text-white/[0.38]">·</span>
-          <span className="text-sm text-white/[0.58]">{plan.chronotypeLabel}</span>
-        </div>
-        <p className="mt-2 text-sm leading-6 text-white/[0.54]">{plan.systemFocusText}</p>
+        <details className="mt-5 rounded-[1.15rem] border border-white/[0.08] bg-white/[0.045] px-4 py-3 text-sm text-white/[0.58]">
+          <summary className="cursor-pointer select-none font-semibold text-white/[0.72]">{guide.detailsLabel}</summary>
+          <div className="mt-4 grid gap-3">
+            <div className="border-t border-white/[0.08] pt-3">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/[0.38]">{guide.registeredLabel}</p>
+              <p className="mt-1 text-lg font-semibold text-white/[0.86]">{plan.currentWindowLabel}</p>
+              <p className="mt-1 text-xs leading-5 text-white/[0.44]">{guide.registeredHint}</p>
+            </div>
+            <div className="border-t border-white/[0.08] pt-3">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/[0.38]">{guide.directionLabel}</p>
+              <p className="mt-1 text-lg font-semibold text-white/[0.86]">{plan.targetWindowLabel}</p>
+              <p className="mt-1 text-xs leading-5 text-white/[0.44]">{guide.directionHint}</p>
+            </div>
+            <div className="border-t border-white/[0.08] pt-3">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/[0.38]">{guide.firstStepLabel}</p>
+              <p className="mt-1 text-lg font-semibold text-white/[0.86]">{plan.nextBedtimeLabel}</p>
+              <p className="mt-1 text-xs leading-5 text-white/[0.44]">{guide.wakeLine}</p>
+            </div>
+            <div className="grid gap-3 border-t border-white/[0.08] pt-3 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/[0.38]">{guide.weekdayLabel}</p>
+                <p className="mt-1 font-semibold text-white/[0.78]">{plan.weekdayWindowLabel}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/[0.38]">{guide.freeLabel}</p>
+                <p className="mt-1 font-semibold text-white/[0.78]">{plan.weekendWindowLabel}</p>
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
-      {!hasProfile ? <p className="mt-3 text-sm text-white/[0.48]">Zen viser en rolig standardrytme til du legger inn din egen.</p> : null}
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="border-t border-white/[0.1] pt-3">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Nåværende</p>
-          <p className="mt-2 text-2xl font-semibold">{plan.currentWindowLabel}</p>
-        </div>
-        <div className="border-t border-white/[0.1] pt-3">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Retning</p>
-          <p className="mt-2 text-2xl font-semibold">{plan.targetWindowLabel}</p>
-        </div>
-        <div className="border-t border-white/[0.1] pt-3">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Første steg</p>
-          <p className="mt-2 text-2xl font-semibold">{plan.nextBedtimeLabel}</p>
-          <p className="mt-1 text-sm text-white/[0.5]">
-            {plan.isCircadianDrifted ? "oppvåkning flyttes gradvis tidligere" : `våkne ca. ${plan.nextWakeLabel}`}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3 rounded-[1.15rem] border border-white/[0.08] bg-white/[0.045] px-4 py-3 sm:grid-cols-2">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/[0.38]">Ukedag</p>
-          <p className="mt-1 text-sm font-semibold text-white/[0.76]">{plan.weekdayWindowLabel}</p>
-        </div>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/[0.38]">Helg/fri</p>
-          <p className="mt-1 text-sm font-semibold text-white/[0.76]">{plan.weekendWindowLabel}</p>
-        </div>
-      </div>
-
-      <p className="mt-5 border-t border-white/[0.08] pt-4 text-sm leading-6 text-white/[0.5]">
-        Fasene på forsiden følger retningen, ikke en forskjøvet døgnrytme. Kveldstype er ikke feil i seg selv; det er mismatchen vi prøver å minske.
-      </p>
     </section>
   );
 }
 
+function getRhythmGuideCopy(plan: RhythmPlan, calendar: RhythmCalendarContext, hasProfile: boolean, language: SupportedLanguage) {
+  const freeDay = calendar.tone === "free_day";
+  const weekend = calendar.tone === "weekend";
+  const shifted = plan.rhythmState === "delayed" || plan.isCircadianDrifted;
+  const variable = plan.rhythmState === "social_jetlag" || plan.rhythmFeeling === "weekday_weekend_diff";
+  const lowSignal = plan.rhythmState === "unstable" || plan.rhythmFeeling === "tired_all_day";
+
+  if (language === "en") {
+    const nowTitle = freeDay
+      ? "A free day can stay soft."
+      : weekend
+        ? "The rhythm can be looser today."
+        : shifted
+          ? "The rhythm is running late right now."
+          : variable
+            ? "Workdays and free days pull differently."
+            : lowSignal
+              ? "The rhythm needs steady signals first."
+              : "The rhythm has a calmer starting point.";
+
+    const nowText = freeDay
+      ? "No need to make the day strict. One small anchor is enough to keep some direction."
+      : weekend
+        ? "Keep a little freedom, and give the body one thing it can recognize."
+        : shifted
+          ? "Zen will not move everything at once. One clear signal at a time is enough."
+          : variable
+            ? "The goal is a softer transition, not a stricter weekend."
+            : lowSignal
+              ? "Light, calm timing, and one small step matter more than a perfect plan."
+              : "Keep it simple and repeatable, without turning the day into a schedule.";
+
+    return {
+      nowLabel: "Right now",
+      nowTitle,
+      nowText,
+      currentPicture: hasProfile ? "This is the current picture of your rhythm, not a goal." : "Zen is using a calm default until you add your own rhythm.",
+      empty: "Add your own rhythm when you want Zen to guide from your real day.",
+      anchorLabel: "Today's rhythm anchor",
+      smallStepLabel: "Small step",
+      adjustLabel: "Adjust rhythm",
+      adjustTitle: hasProfile ? "Change the rhythm when it no longer fits." : "Add your rhythm when you are ready.",
+      adjustText: "You can update how the rhythm feels and the times Zen uses as context.",
+      adjustButton: hasProfile ? "Adjust rhythm" : "Add rhythm",
+      detailsLabel: "Show rhythm details",
+      registeredLabel: "Registered now",
+      registeredHint: "This is what you entered, not what Zen recommends as a final rhythm.",
+      directionLabel: "Soft direction",
+      directionHint: "Zen moves in small steps, not large jumps.",
+      firstStepLabel: "First small shift",
+      wakeLine: plan.isCircadianDrifted ? "Wake time moves gently earlier over time." : `Wake around ${plan.nextWakeLabel}.`,
+      weekdayLabel: "Weekday",
+      freeLabel: "Weekend/free",
+    };
+  }
+
+  const nowTitle = freeDay
+    ? "Fridagen kan være myk."
+    : weekend
+      ? "Rytmen kan være friere i dag."
+      : shifted
+        ? "Rytmen ligger sent akkurat nå."
+        : variable
+          ? "Hverdag og fri trekker ulikt."
+          : lowSignal
+            ? "Rytmen trenger stabile signaler først."
+            : "Rytmen har et roligere utgangspunkt.";
+
+  const nowText = freeDay
+    ? "Dagen trenger ikke bli streng. Ett lite anker er nok til å holde litt retning."
+    : weekend
+      ? "Behold litt frihet, og gi kroppen én ting den kan kjenne igjen."
+      : shifted
+        ? "Zen flytter ikke alt på én gang. Ett tydelig signal om gangen er nok."
+        : variable
+          ? "Målet er en mykere overgang, ikke en strengere helg."
+          : lowSignal
+            ? "Lys, rolig timing og ett lite steg betyr mer enn en perfekt plan."
+            : "Hold det enkelt og gjentakbart, uten at dagen blir en timeplan.";
+
+  return {
+    nowLabel: "Akkurat nå",
+    nowTitle,
+    nowText,
+    currentPicture: hasProfile ? "Dette er slik rytmen ser ut nå, ikke et mål." : "Zen bruker en rolig standardrytme til du legger inn din egen.",
+    empty: "Legg inn din egen rytme når du vil at Zen skal guide fra din faktiske dag.",
+    anchorLabel: "Dagens rytmeanker",
+    smallStepLabel: "Lite steg",
+    adjustLabel: "Juster rytmen",
+    adjustTitle: hasProfile ? "Endre rytmen når den ikke lenger passer." : "Legg inn rytmen når du er klar.",
+    adjustText: "Du kan oppdatere hvordan rytmen føles og tidene Zen bruker som kontekst.",
+    adjustButton: hasProfile ? "Juster rytme" : "Legg inn rytme",
+    detailsLabel: "Vis rytmedetaljer",
+    registeredLabel: "Registrert nå",
+    registeredHint: "Dette er det du har lagt inn, ikke det Zen anbefaler som endelig rytme.",
+    directionLabel: "Myk retning",
+    directionHint: "Zen flytter i små steg, ikke store hopp.",
+    firstStepLabel: "Første lille justering",
+    wakeLine: plan.isCircadianDrifted ? "Våkning flyttes rolig tidligere over tid." : `Våkne rundt ${plan.nextWakeLabel}.`,
+    weekdayLabel: "Ukedag",
+    freeLabel: "Helg/fri",
+  };
+}
+
 function RhythmSetupPanel({
+  language,
   profile,
   onCancel,
   onSave,
 }: {
+  language: SupportedLanguage;
   profile: RhythmProfile | null;
   onCancel?: () => void;
   onSave: (values: RhythmProfileInput) => void;
 }) {
+  const copy =
+    language === "en"
+      ? {
+          title: "Rhythm",
+          heading: "Let Zen meet the rhythm where it is.",
+          cancel: "Cancel",
+          feelingQuestion: "How does the rhythm feel now?",
+          usualBedtime: "Usually sleep",
+          usualWake: "Usually wake",
+          desiredWake: "Want to wake",
+          weekdayWeekend: "Weekday and free days",
+          weekdaySleep: "Weekday sleep",
+          weekdayWake: "Weekday wake",
+          freeSleep: "Free day sleep",
+          freeWake: "Free day wake",
+          error: "Choose valid times first.",
+          save: "Save rhythm",
+        }
+      : {
+          title: "Døgnrytme",
+          heading: "La Zen møte rytmen din der den er.",
+          cancel: "Avbryt",
+          feelingQuestion: "Hvordan føles rytmen nå?",
+          usualBedtime: "Legger meg vanligvis",
+          usualWake: "Våkner vanligvis",
+          desiredWake: "Ønsker å våkne",
+          weekdayWeekend: "Ukedag og fri",
+          weekdaySleep: "Ukedag ned",
+          weekdayWake: "Ukedag opp",
+          freeSleep: "Fri ned",
+          freeWake: "Fri opp",
+          error: "Velg gyldige klokkeslett først.",
+          save: "Lagre rytme",
+        };
   const [rhythmFeeling, setRhythmFeeling] = useState<RhythmProfile["rhythmFeeling"]>(profile?.rhythmFeeling || "unstable");
   const [usualBedtime, setUsualBedtime] = useState(profile?.usualBedtime || "23:30");
   const [usualWake, setUsualWake] = useState(profile?.usualWake || "07:30");
@@ -761,7 +1289,7 @@ function RhythmSetupPanel({
 
   function submit() {
     if (![usualBedtime, usualWake, desiredWake, weekdaySleepTime, weekdayWakeTime, weekendSleepTime, weekendWakeTime].every(isValidClockTime)) {
-      setError("Velg gyldige klokkeslett først.");
+      setError(copy.error);
       return;
     }
 
@@ -773,8 +1301,8 @@ function RhythmSetupPanel({
     <section className="rounded-[1.4rem] border border-white/[0.14] bg-white/[0.11] px-5 py-5 shadow-2xl shadow-black/15 backdrop-blur-2xl">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">Døgnrytme</p>
-          <h3 className="mt-2 text-2xl font-semibold tracking-normal text-white">La Zen møte rytmen din der den er.</h3>
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">{copy.title}</p>
+          <h3 className="mt-2 text-2xl font-semibold tracking-normal text-white">{copy.heading}</h3>
         </div>
         {onCancel ? (
           <button
@@ -782,16 +1310,17 @@ function RhythmSetupPanel({
             type="button"
             onClick={onCancel}
           >
-            Avbryt
+            {copy.cancel}
           </button>
         ) : null}
       </div>
 
       <div className="mt-6 border-t border-white/[0.1] pt-4">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Hvordan føles rytmen nå?</p>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">{copy.feelingQuestion}</p>
         <div className="mt-3 grid gap-2">
           {RHYTHM_FEELING_OPTIONS.map((option) => {
             const active = rhythmFeeling === option.value;
+            const optionCopy = getRhythmFeelingOptionCopy(option.value, language);
             return (
               <button
                 key={option.value}
@@ -801,37 +1330,37 @@ function RhythmSetupPanel({
                 type="button"
                 onClick={() => setRhythmFeeling(option.value)}
               >
-                <span className="block text-sm font-semibold">{option.title}</span>
-                <span className="mt-1 block text-xs leading-5 text-white/[0.48]">{option.description}</span>
+                <span className="block text-sm font-semibold">{optionCopy.title}</span>
+                <span className="mt-1 block text-xs leading-5 text-white/[0.48]">{optionCopy.description}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 border-t border-white/[0.1] pt-4 sm:grid-cols-3">
+      <div className="mt-6 grid gap-4 border-t border-white/[0.1] pt-4 sm:grid-cols-2">
         <label className="block border-t border-white/[0.1] pt-3">
-          <span className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Legger meg vanligvis</span>
+          <span className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">{copy.usualBedtime}</span>
           <input
-            className="mt-3 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-4 py-3 text-lg font-semibold text-white outline-none focus:border-white/[0.34]"
+            className="mt-3 w-full min-w-0 rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold leading-tight text-white outline-none focus:border-white/[0.34]"
             type="time"
             value={usualBedtime}
             onChange={(event) => setUsualBedtime(event.target.value)}
           />
         </label>
         <label className="block border-t border-white/[0.1] pt-3">
-          <span className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Våkner vanligvis</span>
+          <span className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">{copy.usualWake}</span>
           <input
-            className="mt-3 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-4 py-3 text-lg font-semibold text-white outline-none focus:border-white/[0.34]"
+            className="mt-3 w-full min-w-0 rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold leading-tight text-white outline-none focus:border-white/[0.34]"
             type="time"
             value={usualWake}
             onChange={(event) => setUsualWake(event.target.value)}
           />
         </label>
         <label className="block border-t border-white/[0.1] pt-3">
-          <span className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Ønsker å våkne</span>
+          <span className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">{copy.desiredWake}</span>
           <input
-            className="mt-3 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-4 py-3 text-lg font-semibold text-white outline-none focus:border-white/[0.34]"
+            className="mt-3 w-full min-w-0 rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold leading-tight text-white outline-none focus:border-white/[0.34]"
             type="time"
             value={desiredWake}
             onChange={(event) => setDesiredWake(event.target.value)}
@@ -840,219 +1369,303 @@ function RhythmSetupPanel({
       </div>
 
       <div className="mt-6 border-t border-white/[0.1] pt-4">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">Ukedag og helg</p>
-        <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/[0.38]">Ukedag ned</span>
-              <input
-                className="mt-2 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold text-white outline-none focus:border-white/[0.34]"
-                type="time"
-                value={weekdaySleepTime}
-                onChange={(event) => setWeekdaySleepTime(event.target.value)}
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/[0.38]">Ukedag opp</span>
-              <input
-                className="mt-2 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold text-white outline-none focus:border-white/[0.34]"
-                type="time"
-                value={weekdayWakeTime}
-                onChange={(event) => setWeekdayWakeTime(event.target.value)}
-              />
-            </label>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/[0.38]">Fri ned</span>
-              <input
-                className="mt-2 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold text-white outline-none focus:border-white/[0.34]"
-                type="time"
-                value={weekendSleepTime}
-                onChange={(event) => setWeekendSleepTime(event.target.value)}
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/[0.38]">Fri opp</span>
-              <input
-                className="mt-2 w-full rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold text-white outline-none focus:border-white/[0.34]"
-                type="time"
-                value={weekendWakeTime}
-                onChange={(event) => setWeekendWakeTime(event.target.value)}
-              />
-            </label>
-          </div>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/[0.42]">{copy.weekdayWeekend}</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="block min-w-0">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/[0.38]">{copy.weekdaySleep}</span>
+            <input
+              className="mt-2 w-full min-w-0 rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold leading-tight text-white outline-none focus:border-white/[0.34]"
+              type="time"
+              value={weekdaySleepTime}
+              onChange={(event) => setWeekdaySleepTime(event.target.value)}
+            />
+          </label>
+          <label className="block min-w-0">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/[0.38]">{copy.weekdayWake}</span>
+            <input
+              className="mt-2 w-full min-w-0 rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold leading-tight text-white outline-none focus:border-white/[0.34]"
+              type="time"
+              value={weekdayWakeTime}
+              onChange={(event) => setWeekdayWakeTime(event.target.value)}
+            />
+          </label>
+          <label className="block min-w-0">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/[0.38]">{copy.freeSleep}</span>
+            <input
+              className="mt-2 w-full min-w-0 rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold leading-tight text-white outline-none focus:border-white/[0.34]"
+              type="time"
+              value={weekendSleepTime}
+              onChange={(event) => setWeekendSleepTime(event.target.value)}
+            />
+          </label>
+          <label className="block min-w-0">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/[0.38]">{copy.freeWake}</span>
+            <input
+              className="mt-2 w-full min-w-0 rounded-2xl border border-white/[0.14] bg-black/[0.12] px-3 py-3 text-base font-semibold leading-tight text-white outline-none focus:border-white/[0.34]"
+              type="time"
+              value={weekendWakeTime}
+              onChange={(event) => setWeekendWakeTime(event.target.value)}
+            />
+          </label>
         </div>
       </div>
 
       {error ? <p className="mt-4 text-sm text-amber-100">{error}</p> : null}
 
       <button className="mt-5 w-full rounded-2xl bg-white/[0.18] px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.24]" type="button" onClick={submit}>
-        Lagre rytme
+        {copy.save}
       </button>
     </section>
   );
 }
 
-function RhythmCompassPanel({
-  anchors,
-  activeSection,
-  steps,
-}: {
-  anchors: RhythmAnchor[];
-  activeSection: SectionTitle;
-  steps: RhythmSystemStep[];
-}) {
-  const activeAnchor = anchors.find((anchor) => anchor.phase === activeSection) || anchors[0];
+function getRhythmFeelingOptionCopy(value: RhythmProfile["rhythmFeeling"], language: SupportedLanguage) {
+  const copy: Record<RhythmProfile["rhythmFeeling"], Record<SupportedLanguage, { title: string; description: string }>> = {
+    best_early: {
+      no: { title: "Jeg fungerer best tidlig", description: "Zen holder starten myk, men tydelig." },
+      en: { title: "I feel best earlier", description: "Zen keeps the start soft, but clear." },
+    },
+    best_later: {
+      no: { title: "Jeg fungerer best senere", description: "Zen møter rytmen senere uten å presse." },
+      en: { title: "I feel best later", description: "Zen meets the later rhythm without pressure." },
+    },
+    tired_all_day: {
+      no: { title: "Jeg er trøtt nesten uansett", description: "Zen starter med små signaler, ikke store krav." },
+      en: { title: "I feel tired most of the time", description: "Zen starts with small signals, not big demands." },
+    },
+    unstable: {
+      no: { title: "Rytmen føles ustabil", description: "Zen stabiliserer før den tolker." },
+      en: { title: "My rhythm feels unsettled", description: "Zen stabilizes before interpreting." },
+    },
+    weekday_weekend_diff: {
+      no: { title: "Hverdag og fri er ulike", description: "Zen demper forskjellen uten å gjøre fridager strenge." },
+      en: { title: "Workdays and free days differ", description: "Zen softens the difference without making free days strict." },
+    },
+  };
 
-  return (
-    <section className="rounded-[1.4rem] border border-white/[0.11] bg-white/[0.075] px-5 py-5 backdrop-blur-2xl">
-      <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">Rytmekompass</p>
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        {steps.map((step) => (
-          <div
-            key={step.id}
-            className={`rounded-[1rem] border px-3 py-3 ${
-              step.active ? "border-white/[0.26] bg-white/[0.14] text-white" : "border-white/[0.08] bg-black/[0.06] text-white/[0.56]"
-            }`}
-          >
-            <p className="text-sm font-semibold">{step.title}</p>
-            <p className="mt-1 text-xs leading-5 text-white/[0.46]">{step.text}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-4 rounded-[1.1rem] border border-white/[0.09] bg-black/[0.08] px-4 py-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-white/[0.13] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/[0.68]">
-            {activeAnchor.title}
-          </span>
-          <span className="text-sm text-white/[0.5]">{activeAnchor.phase}</span>
-        </div>
-        <p className="mt-3 text-sm leading-6 text-white/[0.58]">{activeAnchor.text}</p>
-        <p className="mt-2 text-sm font-semibold leading-6 text-white/[0.78]">{activeAnchor.action}</p>
-      </div>
-    </section>
-  );
+  return copy[value][language];
 }
-
-function CalendarContextPanel({ calendar }: { calendar: RhythmCalendarContext }) {
-  return (
-    <section className="rounded-[1.4rem] border border-white/[0.11] bg-white/[0.075] px-5 py-5 backdrop-blur-2xl">
-      <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">Ukedag og fri</p>
-      <div className="mt-4 flex items-start gap-3">
-        <div
-          className={`mt-1 h-3 w-3 rounded-full ${
-            calendar.tone === "rodDag" ? "bg-rose-200" : calendar.tone === "helg" ? "bg-sky-200" : "bg-white/[0.5]"
-          }`}
-        />
-        <div>
-          <p className="text-lg font-semibold text-white">{calendar.label}</p>
-          <p className="mt-1 text-sm leading-6 text-white/[0.62]">{calendar.note}</p>
-          {calendar.detail ? <p className="mt-2 text-sm leading-6 text-white/[0.48]">{calendar.detail}</p> : null}
-        </div>
-      </div>
-      <p className="mt-4 border-t border-white/[0.08] pt-4 text-sm leading-6 text-white/[0.5]">
-        Ferier og egne fridager bør kunne få en egen rytme senere, uten at forsiden blir tyngre.
-      </p>
-    </section>
-  );
-}
-
-function DailyNudgesPanel({ nudges, activeSection }: { nudges: RhythmNudge[]; activeSection: SectionTitle }) {
-  return (
-    <section className="rounded-[1.4rem] border border-white/[0.11] bg-black/[0.08] px-5 py-5 shadow-2xl shadow-black/10 backdrop-blur-2xl">
-      <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.5]">Dagens nudges</p>
-      <div className="mt-4 divide-y divide-white/[0.08]">
-        {nudges.map((nudge) => {
-          const active = nudge.phase === activeSection;
-          return (
-            <div key={nudge.id} className="grid grid-cols-[0.75rem_minmax(0,1fr)] gap-3 py-3 first:pt-0 last:pb-0">
-              <span className={`mt-2 h-2.5 w-2.5 rounded-full ${active ? "bg-white shadow-[0_0_18px_rgba(255,255,255,0.75)]" : "bg-white/[0.28]"}`} />
-              <div className="min-w-0">
-                <p className={`text-sm font-semibold ${active ? "text-white" : "text-white/[0.64]"}`}>{nudge.title}</p>
-                <p className="mt-1 text-sm leading-6 text-white/[0.58]">{nudge.text}</p>
-                <p className="mt-2 rounded-full bg-white/[0.07] px-3 py-1 text-xs font-semibold text-white/[0.56]">Lite steg: {nudge.microStep}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function WeatherLab({
+function toLocalIsoDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function buildTestDateTime(now: Date, dateOverride: string) {
+  if (!dateOverride) return now;
+
+  const [year, month, day] = dateOverride.split("-").map(Number);
+  if (!year || !month || !day) return now;
+
+  const nextDate = new Date(now);
+  nextDate.setFullYear(year, month - 1, day);
+  return nextDate;
+}
+
+function inferDayType(date: Date, isHoliday: boolean, workDays: number[]): DayType {
+  if (isHoliday) return "free_day";
+  const day = date.getDay();
+  if (!workDays.includes(day)) return day === 0 || day === 6 ? "weekend" : "free_day";
+  return "weekday";
+}
+
+function DevTestPanel({
   activeSample,
   activeSection,
+  dayType,
+  dayTypeOverride,
+  holidayOverride,
   isOpen,
+  language,
+  testDate,
   onClose,
+  onOpenRhythm,
+  onOpenSettings,
+  onOpenSmallStep,
   onReset,
+  onResetAll,
+  onSelectDayType,
+  onSelectDate,
+  onSelectLanguage,
   onSelectSection,
   onSelect,
   onToggle,
+  onToggleHoliday,
+  settings,
 }: {
   activeSample: string;
   activeSection: SectionTitle | null;
+  dayType: DayType;
+  dayTypeOverride: DayType | null;
+  holidayOverride: HolidayInfo | null;
   isOpen: boolean;
+  language: SupportedLanguage;
   onClose: () => void;
+  onOpenRhythm: () => void;
+  onOpenSettings: () => void;
+  onOpenSmallStep: () => void;
   onReset: () => void;
+  onResetAll: () => void;
+  onSelectDayType: (dayType: DayType | "auto") => void;
+  onSelectDate: (date: string) => void;
+  onSelectLanguage: (language: SupportedLanguage | "auto") => void;
   onSelectSection: (sectionTitle: SectionTitle | null) => void;
   onSelect: (sample: (typeof weatherSamples)[number]) => void;
   onToggle: () => void;
+  onToggleHoliday: () => void;
+  settings: AppSettings;
+  testDate: string;
 }) {
+  const copy = {
+    title: language === "en" ? "DEV test panel" : "DEV testpanel",
+    subtitle: language === "en" ? "Try rhythm, weather, language, and panels quickly." : "Prøv rytme, vær, språk og paneler raskt.",
+    close: language === "en" ? "Close" : "Lukk",
+    time: language === "en" ? "Phase" : "Fase",
+    date: language === "en" ? "Date" : "Dato",
+    dateHint: language === "en" ? "Overrides today for holiday and phase testing." : "Overstyrer dagens dato for helligdag og fasetesting.",
+    weather: language === "en" ? "Weather" : "Vær",
+    language: language === "en" ? "Language" : "Språk",
+    dayType: language === "en" ? "Day type" : "Dagtype",
+    panels: language === "en" ? "Panels" : "Paneler",
+    liveWeather: language === "en" ? "Live weather/time" : "Live vær/tid",
+    resetAll: language === "en" ? "Reset test state" : "Nullstill test",
+    settings: language === "en" ? "Settings" : "Innstillinger",
+    rhythm: language === "en" ? "Rhythm" : "Rytme",
+    smallStep: language === "en" ? "Small step" : "Lite steg",
+    testHoliday: language === "en" ? "Test free day" : "Testfridag",
+  };
+
   if (!isOpen) {
     return (
       <button
-        className="fixed bottom-5 left-5 z-20 hidden rounded-full border border-white/[0.14] bg-black/[0.18] px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-white/[0.72] shadow-2xl shadow-black/20 backdrop-blur-2xl transition hover:bg-white/[0.12] hover:text-white sm:block"
+        className="fixed bottom-5 left-5 z-20 rounded-full border border-white/[0.14] bg-black/[0.18] px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-white/[0.72] shadow-2xl shadow-black/20 backdrop-blur-2xl transition hover:bg-white/[0.12] hover:text-white"
         type="button"
+        aria-label={copy.title}
         onClick={onToggle}
       >
-        Værtest
+        Test
       </button>
     );
   }
 
   return (
-    <div className="fixed bottom-5 left-5 z-30 w-[min(28rem,calc(100vw-2.5rem))] rounded-[1.5rem] border border-white/[0.14] bg-black/[0.24] p-4 shadow-2xl shadow-black/30 backdrop-blur-2xl">
+    <div className="fixed bottom-3 left-3 right-3 z-30 max-h-[calc(100svh-1.5rem)] overflow-y-auto rounded-[1.5rem] border border-white/[0.14] bg-black/[0.28] p-4 shadow-2xl shadow-black/30 backdrop-blur-2xl sm:bottom-5 sm:left-5 sm:right-auto sm:w-[min(38rem,calc(100vw-2.5rem))]">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.58]">DEV værtest</p>
-          <p className="mt-1 text-sm text-white/[0.68]">Prøv vær og tid uten å vente.</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.58]">{copy.title}</p>
+          <p className="mt-1 text-sm text-white/[0.68]">{copy.subtitle}</p>
         </div>
         <button className="rounded-full bg-white/[0.1] px-3 py-2 text-sm text-white/[0.74] transition hover:bg-white/[0.16] hover:text-white" type="button" onClick={onClose}>
-          Lukk
+          {copy.close}
         </button>
       </div>
 
-      <div className="mt-4">
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-white/[0.5]">Tid</p>
-        <div className="grid grid-cols-3 gap-2">
-          {timeSamples.map((sample) => {
-            const active = activeSection === sample.sectionTitle;
-            return (
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <section>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-white/[0.5]">{copy.time}</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {timeSamples.map((sample) => {
+              const active = activeSection === sample.sectionTitle;
+              return (
+                <button
+                  key={sample.label}
+                  className={`min-h-[3rem] rounded-2xl border px-2 py-3 text-center text-xs font-semibold leading-tight transition ${
+                    active ? "border-white/[0.38] bg-white/[0.18] text-white" : "border-white/[0.1] bg-white/[0.07] text-white/[0.72] hover:bg-white/[0.12]"
+                  }`}
+                  type="button"
+                  onClick={() => onSelectSection(sample.sectionTitle)}
+                >
+                  {sample.sectionTitle ? getSectionTitleLabel(sample.sectionTitle, language) : "Live"}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-white/[0.5]">{copy.date}</p>
+          <input
+            className="h-[3.35rem] w-full rounded-2xl border border-white/[0.12] bg-white/[0.07] px-3 text-sm font-semibold text-white outline-none transition [color-scheme:dark] focus:border-white/[0.34]"
+            type="date"
+            value={testDate}
+            onChange={(event) => onSelectDate(event.target.value)}
+          />
+          <p className="mt-2 text-xs leading-5 text-white/[0.46]">{copy.dateHint}</p>
+        </section>
+
+        <section>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-white/[0.5]">{copy.language}</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: "Auto", value: "auto" as const, active: settings.languageSource !== "manual" },
+              { label: "Norsk", value: "no" as const, active: settings.languageSource === "manual" && settings.language === "no" },
+              { label: "English", value: "en" as const, active: settings.languageSource === "manual" && settings.language === "en" },
+            ].map((option) => (
               <button
-                key={sample.label}
-                className={`rounded-2xl border px-2 py-3 text-center text-xs font-semibold transition ${
-                  active ? "border-white/[0.38] bg-white/[0.18] text-white" : "border-white/[0.1] bg-white/[0.07] text-white/[0.72] hover:bg-white/[0.12]"
+                key={option.value}
+                className={`min-h-[3rem] rounded-2xl border px-2 py-3 text-center text-xs font-semibold leading-tight transition ${
+                  option.active ? "border-white/[0.38] bg-white/[0.18] text-white" : "border-white/[0.1] bg-white/[0.07] text-white/[0.72] hover:bg-white/[0.12]"
                 }`}
                 type="button"
-                onClick={() => onSelectSection(sample.sectionTitle)}
+                onClick={() => onSelectLanguage(option.value)}
               >
-                {sample.label}
+                {option.label}
               </button>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-white/[0.5]">{copy.dayType}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {(["auto", "weekday", "weekend", "free_day"] as const).map((option) => {
+              const active = option === "auto" ? !dayTypeOverride : dayTypeOverride === option;
+              return (
+                <button
+                  key={option}
+                  className={`min-h-[3rem] rounded-2xl border px-2 py-3 text-center text-xs font-semibold leading-tight transition ${
+                    active ? "border-white/[0.38] bg-white/[0.18] text-white" : "border-white/[0.1] bg-white/[0.07] text-white/[0.72] hover:bg-white/[0.12]"
+                  }`}
+                  type="button"
+                  onClick={() => onSelectDayType(option)}
+                >
+                  {getDayTypeLabel(option, language)}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-white/[0.46]">{getDayTypeLabel(dayType, language)}</p>
+        </section>
+
+        <section>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-white/[0.5]">{copy.panels}</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {[
+              { label: copy.settings, onClick: onOpenSettings },
+              { label: copy.rhythm, onClick: onOpenRhythm },
+              { label: copy.smallStep, onClick: onOpenSmallStep },
+            ].map((option) => (
+              <button
+                key={option.label}
+                className="min-h-[3rem] rounded-2xl border border-white/[0.1] bg-white/[0.07] px-2 py-3 text-center text-xs font-semibold leading-tight text-white/[0.72] transition hover:bg-white/[0.12] hover:text-white"
+                type="button"
+                onClick={option.onClick}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </section>
       </div>
 
       <div className="mt-4">
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-white/[0.5]">Vær</p>
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-white/[0.5]">{copy.weather}</p>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {weatherSamples.map((sample) => {
@@ -1060,22 +1673,36 @@ function WeatherLab({
           return (
             <button
               key={sample.symbolCode}
-              className={`rounded-2xl border px-3 py-3 text-left text-sm transition ${
+              className={`min-w-0 rounded-2xl border px-3 py-3 text-left text-sm leading-tight transition ${
                 active ? "border-white/[0.38] bg-white/[0.18] text-white" : "border-white/[0.1] bg-white/[0.07] text-white/[0.72] hover:bg-white/[0.12]"
               }`}
               type="button"
               onClick={() => onSelect(sample)}
             >
-              <span className="block font-semibold">{sample.label}</span>
+              <span className="block font-semibold">{sample.labels[language]}</span>
               <span className="mt-1 block text-xs text-white/[0.54]">{sample.symbolCode}</span>
             </button>
           );
         })}
       </div>
 
-      <button className="mt-3 w-full rounded-2xl bg-white/[0.1] px-4 py-3 text-sm font-semibold text-white/[0.75] transition hover:bg-white/[0.16] hover:text-white" type="button" onClick={onReset}>
-        Tilbake til live-vær
-      </button>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <button className="min-h-[3rem] rounded-2xl bg-white/[0.1] px-4 py-3 text-sm font-semibold leading-tight text-white/[0.75] transition hover:bg-white/[0.16] hover:text-white" type="button" onClick={onReset}>
+          {copy.liveWeather}
+        </button>
+        <button
+          className={`min-h-[3rem] rounded-2xl border px-4 py-3 text-sm font-semibold leading-tight transition ${
+            holidayOverride ? "border-rose-200/40 bg-rose-200/20 text-white" : "border-white/[0.1] bg-white/[0.07] text-white/[0.72] hover:bg-white/[0.12]"
+          }`}
+          type="button"
+          onClick={onToggleHoliday}
+        >
+          {copy.testHoliday}
+        </button>
+        <button className="min-h-[3rem] rounded-2xl bg-white/[0.1] px-4 py-3 text-sm font-semibold leading-tight text-white/[0.75] transition hover:bg-white/[0.16] hover:text-white" type="button" onClick={onResetAll}>
+          {copy.resetAll}
+        </button>
+      </div>
     </div>
   );
 }
@@ -1233,8 +1860,8 @@ function placeSmallStep(text: string, fallback: SectionTitle): SectionTitle {
   const normalized = text.toLowerCase();
 
   if (matchesAny(normalized, ["re opp", "frokost", "morgen", "kaffe", "dusj", "trening", "gå tur", "lys", "stå opp"])) return "Morgen";
-  if (matchesAny(normalized, ["jobb", "mail", "e-post", "epost", "møte", "rapport", "søknad", "ringe", "send", "fokus"])) return "Fokus";
-  if (matchesAny(normalized, ["pause", "reset", "puste", "vann", "strekke", "luft"])) return "Pause";
+  if (matchesAny(normalized, ["jobb", "mail", "e-post", "epost", "møte", "rapport", "søknad", "ringe", "send", "fokus"])) return "Dag";
+  if (matchesAny(normalized, ["pause", "reset", "puste", "vann", "strekke", "luft"])) return "Ettermiddag";
   if (matchesAny(normalized, ["rydde", "vaske", "kjøkken", "middag", "handle", "søppel", "klesvask", "mat", "demp"])) return "Kveld";
   if (matchesAny(normalized, ["seng", "senga", "lese", "sove", "meditere", "journal", "bok", "legge meg", "skjerm"])) return "Natt";
 
@@ -1253,11 +1880,13 @@ function isExpiredSmallStep(step: SmallStep) {
   return Date.now() - created > maxAge;
 }
 
-function getSectionIcon(sectionTitle: SectionTitle) {
+function getSectionIcon(sectionTitle: SectionTitle, dayType: DayType = "weekday") {
+  if (sectionTitle === "Dag" && dayType !== "weekday") return "sun";
+
   const map: Record<SectionTitle, WeatherIcon> = {
     Morgen: "sunrise",
-    Fokus: "briefcase",
-    Pause: "cloud",
+    Dag: "briefcase",
+    Ettermiddag: "cloud",
     Kveld: "evening",
     Natt: "moon",
   };

@@ -7,6 +7,7 @@ export type WeatherApiResponse = {
   };
   meta?: {
     locationName?: string;
+    countryCode?: string;
   };
 };
 
@@ -19,9 +20,29 @@ export type WeatherViewModel = {
   symbolCode: string;
 };
 
-export type SectionTitle = "Morgen" | "Fokus" | "Pause" | "Kveld" | "Natt";
+export type DayPhase = "morning" | "day" | "afternoon" | "evening" | "night";
+
+export type DayType = "weekday" | "weekend" | "free_day";
+
+export type SupportedLanguage = "no" | "en";
+
+export type LanguageSource = "browser" | "auto_location" | "manual";
+
+export type LifeArea =
+  | "energy"
+  | "mood"
+  | "focus"
+  | "training"
+  | "food"
+  | "home"
+  | "social"
+  | "reflection"
+  | "sleep";
+
+export type SectionTitle = "Morgen" | "Dag" | "Ettermiddag" | "Kveld" | "Natt";
 
 export type Section = {
+  phase: DayPhase;
   title: SectionTitle;
   time: string;
   mantra: string;
@@ -68,6 +89,43 @@ export type RhythmProfile = {
   weekendWakeTime: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type AppSettings = {
+  language: SupportedLanguage;
+  languageSource: LanguageSource;
+  selectedLifeAreas: LifeArea[];
+  workDays: number[];
+  aiTextEnabled: boolean;
+  holidayAwarenessEnabled: boolean;
+  localSuggestionsEnabled: boolean;
+  dayTypeOverride?: DayType;
+};
+
+export type HolidayInfo = {
+  date: string;
+  name: string;
+  type: string;
+};
+
+export type HolidaysApiResponse = {
+  country: string;
+  iso: string;
+  year: number;
+  source: "api_ninjas" | "fallback_no" | "fallback_empty";
+  holidays: HolidayInfo[];
+};
+
+export type LocalOpportunity = {
+  id: string;
+  title: string;
+  description?: string;
+  locationName?: string;
+  distanceMeters?: number;
+  startsAt?: string;
+  source?: string;
+  category: "event" | "nature" | "social" | "culture" | "movement" | "quiet_place";
+  rhythmFit: Exclude<DayPhase, "night">;
 };
 
 export type Palette = {

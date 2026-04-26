@@ -4,14 +4,15 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const MET_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse";
+const HOLIDAYS_URL = "https://api.api-ninjas.com/v2/holidays";
+const API_NINJAS_KEY = process.env.API_NINJAS_KEY || "";
 const USER_AGENT = "Zen local development weather guide (contact: local@example.com)";
-const cache = new Map();
+const weatherCache = new Map();
+const holidayCache = new Map();
 const CACHE_MS = 10 * 60 * 1000;
+const HOLIDAY_CACHE_MS = 24 * 60 * 60 * 1000;
 
-const allowedOrigins = new Set([
-  "http://localhost:3000",
-  "https://simen27u.github.io",
-]);
+const allowedOrigins = new Set(["http://localhost:3000", "https://simen27u.github.io"]);
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -49,7 +50,7 @@ app.get("/api/weather", async (req, res) => {
     const roundedLat = roundCoordinate(lat);
     const roundedLon = roundCoordinate(lon);
     const cacheKey = `${roundedLat},${roundedLon}`;
-    const cached = cache.get(cacheKey);
+    const cached = weatherCache.get(cacheKey);
 
     if (cached && Date.now() - cached.createdAt < CACHE_MS) {
       res.json(cached.payload);
@@ -75,7 +76,7 @@ app.get("/api/weather", async (req, res) => {
     const symbolCode = findSymbolCode(current);
     const vibe = buildVibe(symbolCode, temperature);
     const text = buildWeatherText(temperature, symbolCode, vibe);
-    const locationName = await resolveLocationName(roundedLat, roundedLon);
+    const locationInfo = await resolveLocationInfo(roundedLat, roundedLon);
 
     const payload = {
       weather: {
@@ -85,11 +86,12 @@ app.get("/api/weather", async (req, res) => {
         text,
       },
       meta: {
-        locationName,
+        locationName: locationInfo.locationName,
+        countryCode: locationInfo.countryCode,
       },
     };
 
-    cache.set(cacheKey, {
+    weatherCache.set(cacheKey, {
       createdAt: Date.now(),
       payload,
     });
@@ -101,9 +103,172 @@ app.get("/api/weather", async (req, res) => {
   }
 });
 
+app.get("/api/holidays", async (req, res) => {
+  const country = normalizeCountryCode(req.query.country);
+  const year = normalizeYear(req.query.year);
+
+  if (!country) {
+    res.status(400).json({ error: "country må være en ISO-landkode, for eksempel NO" });
+    return;
+  }
+
+  const cacheKey = `${country}:${year}`;
+  const cached = holidayCache.get(cacheKey);
+  if (cached && Date.now() - cached.createdAt < HOLIDAY_CACHE_MS) {
+    res.json(cached.payload);
+    return;
+  }
+
+  const payload = await loadHolidayPayload(country, year);
+  holidayCache.set(cacheKey, {
+    createdAt: Date.now(),
+    payload,
+  });
+  res.json(payload);
+});
+
 app.listen(PORT, () => {
   console.log(`Zen backend kjører på http://localhost:${PORT}`);
 });
+
+async function loadHolidayPayload(country, year) {
+  if (API_NINJAS_KEY) {
+    try {
+      const url = `${HOLIDAYS_URL}?country=${encodeURIComponent(country)}&year=${year}`;
+      const response = await fetch(url, {
+        headers: {
+          "X-Api-Key": API_NINJAS_KEY,
+          Accept: "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const holidays = normalizeApiNinjasHolidays(data);
+        return {
+          country: getCountryName(country),
+          iso: country,
+          year,
+          source: "api_ninjas",
+          holidays,
+        };
+      }
+    } catch {
+      // Fallback below keeps Zen usable without depending on the external API.
+    }
+  }
+
+  if (country === "NO") {
+    return {
+      country: "Norway",
+      iso: "NO",
+      year,
+      source: "fallback_no",
+      holidays: getNorwegianHolidays(year),
+    };
+  }
+
+  return {
+    country: getCountryName(country),
+    iso: country,
+    year,
+    source: "fallback_empty",
+    holidays: [],
+  };
+}
+
+function normalizeApiNinjasHolidays(data) {
+  if (!Array.isArray(data)) return [];
+
+  return data
+    .map((holiday) => {
+      const date = typeof holiday?.date === "string" ? holiday.date : "";
+      const name = typeof holiday?.name === "string" ? holiday.name : "";
+      const typeValue = Array.isArray(holiday?.type) ? holiday.type.join(", ") : holiday?.type;
+      const type = typeof typeValue === "string" && typeValue.trim() ? typeValue : "HOLIDAY";
+
+      return { date, name, type };
+    })
+    .filter((holiday) => /^\d{4}-\d{2}-\d{2}$/.test(holiday.date) && holiday.name);
+}
+
+function normalizeCountryCode(value) {
+  if (typeof value !== "string") return "NO";
+  const normalized = value.trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(normalized) ? normalized : "";
+}
+
+function normalizeYear(value) {
+  const year = Number(value || new Date().getFullYear());
+  if (!Number.isInteger(year) || year < 1970 || year > 2100) return new Date().getFullYear();
+  return year;
+}
+
+function getCountryName(country) {
+  const names = {
+    NO: "Norway",
+    SE: "Sweden",
+    DK: "Denmark",
+    FI: "Finland",
+    IS: "Iceland",
+    US: "United States",
+    GB: "United Kingdom",
+  };
+
+  return names[country] || country;
+}
+
+function getNorwegianHolidays(year) {
+  const easter = getEasterSunday(year);
+  const holidays = [
+    { date: `${year}-01-01`, name: "Første nyttårsdag", type: "PUBLIC_HOLIDAY" },
+    { date: toIsoDate(addDays(easter, -3)), name: "Skjærtorsdag", type: "PUBLIC_HOLIDAY" },
+    { date: toIsoDate(addDays(easter, -2)), name: "Langfredag", type: "PUBLIC_HOLIDAY" },
+    { date: toIsoDate(easter), name: "Første påskedag", type: "PUBLIC_HOLIDAY" },
+    { date: toIsoDate(addDays(easter, 1)), name: "Andre påskedag", type: "PUBLIC_HOLIDAY" },
+    { date: `${year}-05-01`, name: "Arbeidernes dag", type: "PUBLIC_HOLIDAY" },
+    { date: `${year}-05-17`, name: "Grunnlovsdagen", type: "PUBLIC_HOLIDAY" },
+    { date: toIsoDate(addDays(easter, 39)), name: "Kristi himmelfartsdag", type: "PUBLIC_HOLIDAY" },
+    { date: toIsoDate(addDays(easter, 49)), name: "Første pinsedag", type: "PUBLIC_HOLIDAY" },
+    { date: toIsoDate(addDays(easter, 50)), name: "Andre pinsedag", type: "PUBLIC_HOLIDAY" },
+    { date: `${year}-12-25`, name: "Første juledag", type: "PUBLIC_HOLIDAY" },
+    { date: `${year}-12-26`, name: "Andre juledag", type: "PUBLIC_HOLIDAY" },
+  ];
+
+  return holidays.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function getEasterSunday(year) {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+
+  return new Date(year, month - 1, day);
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function toIsoDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function roundCoordinate(value) {
   return Number(value.toFixed(4));
@@ -128,26 +293,31 @@ function buildLocationName(lat, lon) {
   if (isOslo) return "Oslo";
 
   const nearbyPlace = findKnownNearbyPlace(lat, lon, 18);
-  if (nearbyPlace) return nearbyPlace;
+  if (nearbyPlace) return nearbyPlace.name;
 
   return `Nær ${lat.toFixed(2)}, ${lon.toFixed(2)}`;
 }
 
+function inferCountryCodeFromCoordinates(lat, lon) {
+  if (lat >= 57 && lat <= 72 && lon >= 4 && lon <= 32) return "NO";
+  return "";
+}
+
 function findKnownNearbyPlace(lat, lon, maxDistanceKm) {
   const places = [
-    { name: "Oslo", lat: 59.9139, lon: 10.7522 },
-    { name: "Lillestrøm", lat: 59.956, lon: 11.0492 },
-    { name: "Strømmen", lat: 59.95, lon: 11.0 },
-    { name: "Lørenskog", lat: 59.93, lon: 10.96 },
-    { name: "Jessheim", lat: 60.1415, lon: 11.1752 },
-    { name: "Kløfta", lat: 60.0741, lon: 11.1381 },
-    { name: "Ask", lat: 60.071, lon: 11.035 },
-    { name: "Gjerdrum", lat: 60.071, lon: 11.035 },
-    { name: "Nannestad", lat: 60.217, lon: 11.012 },
-    { name: "Eidsvoll", lat: 60.3306, lon: 11.2616 },
-    { name: "Sørumsand", lat: 59.987, lon: 11.24 },
-    { name: "Fetsund", lat: 59.929, lon: 11.162 },
-    { name: "Vossevangen", lat: 60.6297, lon: 6.4147 },
+    { name: "Oslo", lat: 59.9139, lon: 10.7522, countryCode: "NO" },
+    { name: "Lillestrøm", lat: 59.956, lon: 11.0492, countryCode: "NO" },
+    { name: "Strømmen", lat: 59.95, lon: 11.0, countryCode: "NO" },
+    { name: "Lørenskog", lat: 59.93, lon: 10.96, countryCode: "NO" },
+    { name: "Jessheim", lat: 60.1415, lon: 11.1752, countryCode: "NO" },
+    { name: "Kløfta", lat: 60.0741, lon: 11.1381, countryCode: "NO" },
+    { name: "Ask", lat: 60.071, lon: 11.035, countryCode: "NO" },
+    { name: "Gjerdrum", lat: 60.071, lon: 11.035, countryCode: "NO" },
+    { name: "Nannestad", lat: 60.217, lon: 11.012, countryCode: "NO" },
+    { name: "Eidsvoll", lat: 60.3306, lon: 11.2616, countryCode: "NO" },
+    { name: "Sørumsand", lat: 59.987, lon: 11.24, countryCode: "NO" },
+    { name: "Fetsund", lat: 59.929, lon: 11.162, countryCode: "NO" },
+    { name: "Vossevangen", lat: 60.6297, lon: 6.4147, countryCode: "NO" },
   ];
 
   const nearest = places
@@ -157,7 +327,7 @@ function findKnownNearbyPlace(lat, lon, maxDistanceKm) {
     }))
     .sort((a, b) => a.distance - b.distance)[0];
 
-  return nearest && nearest.distance <= maxDistanceKm ? nearest.name : "";
+  return nearest && nearest.distance <= maxDistanceKm ? nearest : null;
 }
 
 function getDistanceKm(latA, lonA, latB, lonB) {
@@ -175,20 +345,25 @@ function toRadians(value) {
   return (value * Math.PI) / 180;
 }
 
-async function resolveLocationName(lat, lon) {
+async function resolveLocationInfo(lat, lon) {
   const closeKnownPlace = findKnownNearbyPlace(lat, lon, 4);
-  if (closeKnownPlace) return closeKnownPlace;
+  if (closeKnownPlace) {
+    return { locationName: closeKnownPlace.name, countryCode: closeKnownPlace.countryCode };
+  }
 
-  const geocodeJsonName = await resolveGeocodeJsonLocationName(lat, lon);
-  if (geocodeJsonName) return geocodeJsonName;
+  const geocodeJsonInfo = await resolveGeocodeJsonLocationInfo(lat, lon);
+  if (geocodeJsonInfo.locationName) return geocodeJsonInfo;
 
-  const jsonName = await resolveJsonLocationName(lat, lon);
-  if (jsonName) return jsonName;
+  const jsonInfo = await resolveJsonLocationInfo(lat, lon);
+  if (jsonInfo.locationName) return jsonInfo;
 
-  return buildLocationName(lat, lon);
+  return {
+    locationName: buildLocationName(lat, lon),
+    countryCode: inferCountryCodeFromCoordinates(lat, lon),
+  };
 }
 
-async function resolveGeocodeJsonLocationName(lat, lon) {
+async function resolveGeocodeJsonLocationInfo(lat, lon) {
   try {
     const url = `${NOMINATIM_URL}?format=geocodejson&lat=${lat}&lon=${lon}&zoom=12&addressdetails=1&accept-language=nb,no,en`;
     const response = await fetch(url, {
@@ -199,20 +374,22 @@ async function resolveGeocodeJsonLocationName(lat, lon) {
     });
 
     if (!response.ok) {
-      return "";
+      return { locationName: "", countryCode: "" };
     }
 
     const data = await response.json();
     const geocoding = data?.features?.[0]?.properties?.geocoding;
     const admin = geocoding?.admin || {};
+    const locationName = geocoding?.city || geocoding?.locality || geocoding?.district || admin.level8 || admin.level7 || admin.level6 || geocoding?.county || "";
+    const countryCode = typeof geocoding?.country_code === "string" ? geocoding.country_code.toUpperCase() : "";
 
-    return geocoding?.city || geocoding?.locality || geocoding?.district || admin.level8 || admin.level7 || admin.level6 || geocoding?.county || "";
+    return { locationName, countryCode };
   } catch {
-    return "";
+    return { locationName: "", countryCode: "" };
   }
 }
 
-async function resolveJsonLocationName(lat, lon) {
+async function resolveJsonLocationInfo(lat, lon) {
   try {
     const url = `${NOMINATIM_URL}?format=jsonv2&lat=${lat}&lon=${lon}&zoom=12&addressdetails=1&accept-language=nb,no,en`;
     const response = await fetch(url, {
@@ -223,12 +400,12 @@ async function resolveJsonLocationName(lat, lon) {
     });
 
     if (!response.ok) {
-      return "";
+      return { locationName: "", countryCode: "" };
     }
 
     const data = await response.json();
     const address = data?.address || {};
-    const name =
+    const locationName =
       address.city ||
       address.town ||
       address.village ||
@@ -237,11 +414,13 @@ async function resolveJsonLocationName(lat, lon) {
       address.municipality ||
       address.county ||
       address.state ||
-      data?.name;
+      data?.name ||
+      "";
+    const countryCode = typeof address.country_code === "string" ? address.country_code.toUpperCase() : "";
 
-    return name || "";
+    return { locationName, countryCode };
   } catch {
-    return "";
+    return { locationName: "", countryCode: "" };
   }
 }
 
