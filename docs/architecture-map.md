@@ -2,6 +2,10 @@
 
 Dette dokumentet er laget for å kunne åpnes i en større visning i GitHub, VS Code eller en Mermaid-viewer.
 
+Høyoppløselig vektorbilde:
+
+![Zen Architecture Map](./architecture-map.svg)
+
 Kort forklart:
 
 - `localhost:3000` er lokal frontend for utvikling.

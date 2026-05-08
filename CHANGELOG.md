@@ -1,5 +1,10 @@
 # Changelog
 
+## DEV 1.27 - Architecture map image
+
+- La til `docs/architecture-map.svg` som høyoppløselig vektorbilde av arkitekturen.
+- Koblet SVG-bildet inn øverst i arkitekturdokumentet, slik at kartet kan åpnes og zoomes bedre.
+
 ## DEV 1.26 - Gemini text layer and architecture map
 
 - La til nedlastbart arkitektkart i `docs/architecture-map.md` og `docs/architecture-map.mmd`.
