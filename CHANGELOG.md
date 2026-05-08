@@ -1,9 +1,17 @@
 # Changelog
 
+## DEV 1.28 - Architecture map export fix
+
+- La til en egen HTML-eksportmodus for arkitekturkartet, slik at PNG-versjonen ikke avhenger av nettleserens SVG-preview.
+- Genererte `docs/architecture-map.png` på nytt som et vanlig høyoppløselig bilde uten ødeleggende preview-kant.
+- Beholdt SVG som hovedkilde og HTML som enklere zoom-/visningsflate.
+
 ## DEV 1.27 - Architecture map image
 
 - La til `docs/architecture-map.svg` som høyoppløselig vektorbilde av arkitekturen.
 - Koblet SVG-bildet inn øverst i arkitekturdokumentet, slik at kartet kan åpnes og zoomes bedre.
+- La til `docs/architecture-map.html` som en mer robust nettleservisning hvis Markdown/SVG-previewen ikke viser bildet.
+- La til `docs/architecture-map.png` som trygg bildeversjon for visninger som ikke liker SVG.
 
 ## DEV 1.26 - Gemini text layer and architecture map
 

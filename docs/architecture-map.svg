@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1700" viewBox="0 0 2400 1700" role="img" aria-labelledby="title desc">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1608" viewBox="0 0 2400 1608" role="img" aria-labelledby="title desc">
   <title id="title">Zen Architecture Map</title>
   <desc id="desc">High quality vector architecture map for the Zen app, showing frontend, backend, external services, deploy flow, and product principles.</desc>
   <defs>
@@ -27,29 +28,29 @@
     </marker>
     <style>
       .title { fill: #ffffff; font: 700 54px Arial, sans-serif; letter-spacing: 0.02em; }
-      .subtitle { fill: rgba(255,255,255,0.68); font: 400 25px Arial, sans-serif; }
-      .panel-title { fill: rgba(255,255,255,0.86); font: 700 25px Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
+      .subtitle { fill: #ffffff; fill-opacity: 0.68; font: 400 25px Arial, sans-serif; }
+      .panel-title { fill: #ffffff; fill-opacity: 0.86; font: 700 25px Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
       .label { fill: #ffffff; font: 700 23px Arial, sans-serif; }
-      .small { fill: rgba(255,255,255,0.70); font: 400 18px Arial, sans-serif; }
-      .tiny { fill: rgba(255,255,255,0.55); font: 400 16px Arial, sans-serif; }
-      .pill { fill: rgba(255,255,255,0.08); stroke: rgba(255,255,255,0.15); stroke-width: 1.4; }
-      .panel { fill: url(#panel); stroke: rgba(255,255,255,0.18); stroke-width: 1.5; filter: url(#shadow); }
-      .node { fill: url(#node); stroke: rgba(255,255,255,0.20); stroke-width: 1.5; }
-      .accent { fill: url(#nodeAccent); stroke: rgba(210,240,255,0.36); stroke-width: 1.7; }
-      .fallback { fill: rgba(255,226,184,0.12); stroke: rgba(255,226,184,0.28); stroke-width: 1.5; }
-      .arrow { fill: none; stroke: rgba(219,234,254,0.62); stroke-width: 3; marker-end: url(#arrow); }
-      .soft-arrow { fill: none; stroke: rgba(219,234,254,0.38); stroke-width: 2.4; marker-end: url(#arrow); }
+      .small { fill: #ffffff; fill-opacity: 0.70; font: 400 18px Arial, sans-serif; }
+      .tiny { fill: #ffffff; fill-opacity: 0.55; font: 400 16px Arial, sans-serif; }
+      .pill { fill: #ffffff; fill-opacity: 0.08; stroke: #ffffff; stroke-opacity: 0.15; stroke-width: 1.4; }
+      .panel { fill: url(#panel); stroke: #ffffff; stroke-opacity: 0.18; stroke-width: 1.5; filter: url(#shadow); }
+      .node { fill: url(#node); stroke: #ffffff; stroke-opacity: 0.20; stroke-width: 1.5; }
+      .accent { fill: url(#nodeAccent); stroke: #d2f0ff; stroke-opacity: 0.36; stroke-width: 1.7; }
+      .fallback { fill: #ffe2b8; fill-opacity: 0.12; stroke: #ffe2b8; stroke-opacity: 0.28; stroke-width: 1.5; }
+      .arrow { fill: none; stroke: #dbeafe; stroke-opacity: 0.62; stroke-width: 3; marker-end: url(#arrow); }
+      .soft-arrow { fill: none; stroke: #dbeafe; stroke-opacity: 0.38; stroke-width: 2.4; marker-end: url(#arrow); }
     </style>
   </defs>
 
-  <rect width="2400" height="1700" fill="url(#bg)"/>
+  <rect width="2400" height="1608" fill="url(#bg)"/>
   <circle cx="430" cy="240" r="290" fill="#8fb8ff" opacity="0.08"/>
   <circle cx="2020" cy="1320" r="340" fill="#ffd4aa" opacity="0.09"/>
   <circle cx="1260" cy="830" r="440" fill="#ffffff" opacity="0.035"/>
 
   <text x="100" y="90" class="title">Zen Architecture Map</text>
   <text x="102" y="132" class="subtitle">Public DEV preview, local development, backend services, Gemini layer, and fallback-first product logic.</text>
-  <text x="1990" y="92" class="tiny">DEV 1.27 diagram</text>
+  <text x="1990" y="92" class="tiny">DEV 1.28 diagram</text>
 
   <!-- Top flow -->
   <rect x="1010" y="145" width="380" height="90" rx="24" class="accent"/>

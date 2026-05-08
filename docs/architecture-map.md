@@ -2,9 +2,13 @@
 
 Dette dokumentet er laget for å kunne åpnes i en større visning i GitHub, VS Code eller en Mermaid-viewer.
 
-Høyoppløselig vektorbilde:
+Høyoppløselige visninger:
 
-![Zen Architecture Map](./architecture-map.svg)
+- [Åpne som HTML-visning](./architecture-map.html)
+- [Åpne som SVG-bilde](./architecture-map.svg)
+- [Åpne som PNG-bilde](./architecture-map.png)
+
+![Zen Architecture Map](./architecture-map.png)
 
 Kort forklart:
 
