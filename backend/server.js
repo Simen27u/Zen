@@ -8,7 +8,8 @@ const HOLIDAYS_URL = "https://api.api-ninjas.com/v2/holidays";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const API_NINJAS_KEY = process.env.API_NINJAS_KEY || "";
-const USER_AGENT = "Zen local development weather guide (contact: local@example.com)";
+const USER_AGENT =
+  process.env.ZEN_USER_AGENT || "Zen/1.0 (https://github.com/Simen27u/Zen; contact: https://github.com/Simen27u)";
 const weatherCache = new Map();
 const holidayCache = new Map();
 const localSuggestionsCache = new Map();
