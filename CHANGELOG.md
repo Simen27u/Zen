@@ -1,5 +1,17 @@
 # Changelog
 
+## DEV 1.25 - Backend weather identity
+
+- Rettet backend sin `User-Agent` mot MET/Yr og Nominatim, slik at produksjons-backenden ikke blir avvist som en generisk testklient.
+- La inn mulighet for `ZEN_USER_AGENT` som miljøvariabel, slik at identiteten kan overstyres fra Render uten kodeendring senere.
+- Verifiserte at Render igjen returnerer ekte værdata til GitHub Pages-previewen.
+
+## DEV 1.24 - Compact local suggestions
+
+- Flyttet lokale forslag inn som en rolig tekstlinje i `Nå`-glasspanelet i stedet for å utvide område- og værkortet.
+- Beholdt lokale forslag som en eksperimentell opt-in-funksjon, med fallback når Gemini ikke er tilgjengelig.
+- Pushet `dev-1.24` som siste kompakte preview før backend weather identity-fiksen.
+
 ## DEV 1.23 - Desktop scene canvas
 
 - Gj??r desktopvisningen til en fast Zen-scene i en responsiv ramme, i stedet for en vanlig dokumentlayout.
