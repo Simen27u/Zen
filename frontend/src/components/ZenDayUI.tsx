@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import AmbientBackdrop from "./AmbientBackdrop";
+import { fetchBackendStatus, fetchZenText } from "../lib/aiTextClient";
 import { fetchLocalSuggestions } from "../lib/localSuggestions";
 import { buildAmbientLead, getGreeting, getWeatherSummary } from "../lib/textSystem";
 import { getWeatherPalette } from "../lib/weatherPalette";
@@ -38,6 +39,7 @@ import {
 import { formatDate, formatTime, prettifySymbolCode } from "../lib/weatherUtils";
 import type {
   AppSettings,
+  BackendStatusResponse,
   DayPhase,
   DayType,
   HolidayInfo,
@@ -50,6 +52,7 @@ import type {
   SupportedLanguage,
   WeatherApiResponse,
   WeatherViewModel,
+  ZenTextApiResponse,
 } from "../types/weather";
 
 const DEFAULT_LAT = 59.9139;
@@ -57,6 +60,8 @@ const DEFAULT_LON = 10.7522;
 const WEATHER_URL = import.meta.env.VITE_WEATHER_URL || "http://localhost:3001/api/weather";
 const HOLIDAYS_URL = WEATHER_URL.replace(/\/api\/weather$/, "/api/holidays");
 const LOCAL_SUGGESTIONS_URL = WEATHER_URL.replace(/\/api\/weather$/, "/api/local-suggestions");
+const STATUS_URL = WEATHER_URL.replace(/\/api\/weather$/, "/api/status");
+const ZEN_TEXT_URL = WEATHER_URL.replace(/\/api\/weather$/, "/api/zen-text");
 const SMALL_STEPS_KEY = "zen_small_steps";
 
 type RhythmProfileInput = Pick<
@@ -130,6 +135,11 @@ export default function ZenDayUI() {
   const [localSuggestions, setLocalSuggestions] = useState<LocalSuggestionsApiResponse | null>(null);
   const [isLoadingLocalSuggestions, setIsLoadingLocalSuggestions] = useState<boolean>(false);
   const [localSuggestionsError, setLocalSuggestionsError] = useState<string>("");
+  const [backendStatus, setBackendStatus] = useState<BackendStatusResponse | null>(null);
+  const [backendStatusError, setBackendStatusError] = useState<string>("");
+  const [zenText, setZenText] = useState<ZenTextApiResponse | null>(null);
+  const [isLoadingZenText, setIsLoadingZenText] = useState<boolean>(false);
+  const [zenTextError, setZenTextError] = useState<string>("");
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -226,6 +236,30 @@ export default function ZenDayUI() {
   useEffect(() => {
     saveAppSettings(appSettings);
   }, [appSettings]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBackendStatus() {
+      try {
+        setBackendStatusError("");
+        const status = await fetchBackendStatus(STATUS_URL);
+        if (isMounted) {
+          setBackendStatus(status);
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        setBackendStatus(null);
+        setBackendStatusError(error instanceof Error ? error.message : "Kunne ikke hente backend-status");
+      }
+    }
+
+    void loadBackendStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window.history.scrollRestoration === "string") {
@@ -365,6 +399,74 @@ export default function ZenDayUI() {
       }),
     [appSettings.holidayAwarenessEnabled, dayType, displayNow, language, rhythmPlan, todayHoliday]
   );
+  const baseAmbientLead = useMemo(
+    () => buildAmbientLead(activeSectionTitle, displayWeather, isLoadingWeather && !weatherOverride, language),
+    [activeSectionTitle, displayWeather, isLoadingWeather, language, weatherOverride]
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!appSettings.aiTextEnabled || isLoadingWeather) {
+      setZenText(null);
+      setZenTextError("");
+      setIsLoadingZenText(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    async function loadZenText() {
+      try {
+        setIsLoadingZenText(true);
+        setZenTextError("");
+
+        const data = await fetchZenText(ZEN_TEXT_URL, {
+          phase: activeDayPhase,
+          dayType,
+          language,
+          date: baseIsoDate,
+          weatherSymbol: displayWeather.symbolCode,
+          temperature: displayWeather.temperature,
+          rhythmState: rhythmPlan.rhythmState,
+          lifeAreas: appSettings.selectedLifeAreas,
+          baseMessage: baseAmbientLead,
+        });
+
+        if (isMounted) {
+          setZenText(data);
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        setZenText(null);
+        setZenTextError(error instanceof Error ? error.message : "Kunne ikke hente Zen-tekst");
+      } finally {
+        if (isMounted) {
+          setIsLoadingZenText(false);
+        }
+      }
+    }
+
+    void loadZenText();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    activeDayPhase,
+    appSettings.aiTextEnabled,
+    appSettings.selectedLifeAreas,
+    baseAmbientLead,
+    baseIsoDate,
+    dayType,
+    displayWeather.symbolCode,
+    displayWeather.temperature,
+    isLoadingWeather,
+    language,
+    rhythmPlan.rhythmState,
+  ]);
+
+  const ambientLead = appSettings.aiTextEnabled && zenText?.text ? zenText.text : baseAmbientLead;
 
   useEffect(() => {
     let isMounted = true;
@@ -548,7 +650,7 @@ export default function ZenDayUI() {
                 {language === "en" ? "Now" : "Nå"}
               </p>
               <p className="mt-8 break-words text-3xl leading-tight text-white/[0.94] sm:text-4xl lg:text-[2.55rem]">
-                {buildAmbientLead(activeSectionTitle, displayWeather, isLoadingWeather && !weatherOverride, language)}
+                {ambientLead}
               </p>
               <LocalSuggestionLine
                 data={localSuggestions}
@@ -713,13 +815,22 @@ export default function ZenDayUI() {
       <DevTestPanel
         activeSample={weatherOverride?.symbolCode || ""}
         activeSection={sectionOverride}
+        aiTextEnabled={appSettings.aiTextEnabled}
+        backendStatus={backendStatus}
+        backendStatusError={backendStatusError}
         dayType={dayType}
         dayTypeOverride={testDayTypeOverride}
         holidayOverride={holidayOverride}
         isOpen={isTestPanelOpen}
         language={language}
+        localSuggestions={localSuggestions}
         localSuggestionsEnabled={appSettings.localSuggestionsEnabled}
+        localSuggestionsError={localSuggestionsError}
         testDate={testDateOverride}
+        weatherError={weatherError}
+        zenText={zenText}
+        zenTextError={zenTextError}
+        zenTextLoading={isLoadingZenText}
         onClose={() => setIsTestPanelOpen(false)}
         onOpenRhythm={() => {
           setIsRhythmDrawerOpen(true);
@@ -850,6 +961,11 @@ function SettingsDrawer({
         ? "Zen uses this to understand weekdays, free days, and a softer weekend rhythm."
         : "Zen bruker dette til å forstå hverdager, fridager og en mykere helgerytme.",
     holidays: language === "en" ? "Holidays" : "Helligdager",
+    aiText: language === "en" ? "Zen text" : "Zen-tekst",
+    aiTextHint:
+      language === "en"
+        ? "Optional Gemini wording for the Now panel. The local text stays as fallback."
+        : "Valgfri Gemini-formulering i Nå-panelet. Lokal tekst brukes alltid som fallback.",
     local: language === "en" ? "Local suggestions" : "Lokale forslag",
     localHint:
       language === "en"
@@ -1008,6 +1124,24 @@ function SettingsDrawer({
             {holidaysSource ? `Kilde: ${holidaysSource}` : language === "en" ? "Source: waiting for backend" : "Kilde: venter på backend"}
             {holidayError ? ` · ${holidayError}` : ""}
           </p>
+        </section>
+
+        <section className="rounded-[1.4rem] border border-white/[0.1] bg-black/[0.08] px-5 py-5 backdrop-blur-2xl">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/[0.45]">{copy.aiText}</p>
+          <p className="mt-2 text-sm leading-6 text-white/[0.55]">{copy.aiTextHint}</p>
+          <button
+            className={`mt-4 flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
+              settings.aiTextEnabled
+                ? "border-white/[0.3] bg-white/[0.15] text-white"
+                : "border-white/[0.08] bg-white/[0.045] text-white/[0.55] hover:bg-white/[0.09]"
+            }`}
+            type="button"
+            aria-pressed={settings.aiTextEnabled}
+            onClick={() => onChange((current) => ({ ...current, aiTextEnabled: !current.aiTextEnabled }))}
+          >
+            <span>{language === "en" ? "AI wording" : "KI-formulering"}</span>
+            <span className="font-semibold">{settings.aiTextEnabled ? (language === "en" ? "On" : "På") : language === "en" ? "Off" : "Av"}</span>
+          </button>
         </section>
 
         <section className="rounded-[1.4rem] border border-white/[0.1] bg-black/[0.08] px-5 py-5 backdrop-blur-2xl">
@@ -1606,13 +1740,22 @@ function inferDayType(date: Date, isHoliday: boolean, workDays: number[]): DayTy
 function DevTestPanel({
   activeSample,
   activeSection,
+  aiTextEnabled,
+  backendStatus,
+  backendStatusError,
   dayType,
   dayTypeOverride,
   holidayOverride,
   isOpen,
   language,
+  localSuggestions,
   localSuggestionsEnabled,
+  localSuggestionsError,
   testDate,
+  weatherError,
+  zenText,
+  zenTextError,
+  zenTextLoading,
   onClose,
   onOpenRhythm,
   onOpenSettings,
@@ -1631,12 +1774,21 @@ function DevTestPanel({
 }: {
   activeSample: string;
   activeSection: SectionTitle | null;
+  aiTextEnabled: boolean;
+  backendStatus: BackendStatusResponse | null;
+  backendStatusError: string;
   dayType: DayType;
   dayTypeOverride: DayType | null;
   holidayOverride: HolidayInfo | null;
   isOpen: boolean;
   language: SupportedLanguage;
+  localSuggestions: LocalSuggestionsApiResponse | null;
   localSuggestionsEnabled: boolean;
+  localSuggestionsError: string;
+  weatherError: string;
+  zenText: ZenTextApiResponse | null;
+  zenTextError: string;
+  zenTextLoading: boolean;
   onClose: () => void;
   onOpenRhythm: () => void;
   onOpenSettings: () => void;
@@ -1665,12 +1817,14 @@ function DevTestPanel({
     language: language === "en" ? "Language" : "Språk",
     dayType: language === "en" ? "Day type" : "Dagtype",
     panels: language === "en" ? "Panels" : "Paneler",
+    status: language === "en" ? "Backend status" : "Backend-status",
     liveWeather: language === "en" ? "Live weather/time" : "Live vær/tid",
     resetAll: language === "en" ? "Reset test state" : "Nullstill test",
     settings: language === "en" ? "Settings" : "Innstillinger",
     rhythm: language === "en" ? "Rhythm" : "Rytme",
     smallStep: language === "en" ? "Small step" : "Lite steg",
     local: language === "en" ? "Local ideas" : "Lokale ideer",
+    aiText: language === "en" ? "AI text" : "KI-tekst",
     testHoliday: language === "en" ? "Test free day" : "Testfridag",
   };
 
@@ -1698,6 +1852,43 @@ function DevTestPanel({
           {copy.close}
         </button>
       </div>
+
+      <section className="mt-4 rounded-2xl border border-white/[0.1] bg-white/[0.055] px-3 py-3">
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-white/[0.5]">{copy.status}</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <StatusPill
+            label={language === "en" ? "Backend" : "Backend"}
+            value={backendStatus?.ok ? "ok" : backendStatusError ? "error" : "wait"}
+            detail={backendStatusError || (backendStatus?.ok ? "ok" : "...")}
+            language={language}
+          />
+          <StatusPill
+            label={language === "en" ? "Weather" : "Vær"}
+            value={weatherError ? "error" : "ok"}
+            detail={weatherError ? (language === "en" ? "fallback" : "reserve") : "ok"}
+            language={language}
+          />
+          <StatusPill
+            label={copy.local}
+            value={!localSuggestionsEnabled ? "off" : localSuggestionsError ? "error" : localSuggestions ? "ok" : "wait"}
+            detail={!localSuggestionsEnabled ? "off" : localSuggestions?.source || localSuggestionsError || "..."}
+            language={language}
+          />
+          <StatusPill
+            label={copy.aiText}
+            value={!aiTextEnabled ? "off" : zenTextError ? "error" : zenText ? "ok" : zenTextLoading ? "wait" : "wait"}
+            detail={!aiTextEnabled ? "off" : zenText?.source || zenTextError || "..."}
+            language={language}
+          />
+        </div>
+        {backendStatus?.services.gemini.configured ? (
+          <p className="mt-2 text-xs text-white/[0.42]">{backendStatus.services.gemini.model}</p>
+        ) : (
+          <p className="mt-2 text-xs text-white/[0.42]">
+            {language === "en" ? "Gemini key is not visible to frontend; status only says whether backend has one." : "Gemini-nøkkelen vises ikke i frontend; status sier bare om backend har en."}
+          </p>
+        )}
+      </section>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <section>
@@ -1841,6 +2032,38 @@ function DevTestPanel({
           {copy.resetAll}
         </button>
       </div>
+    </div>
+  );
+}
+
+function StatusPill({
+  detail,
+  label,
+  language,
+  value,
+}: {
+  detail: string;
+  label: string;
+  language: SupportedLanguage;
+  value: "ok" | "error" | "wait" | "off";
+}) {
+  const styles = {
+    ok: "border-emerald-200/20 bg-emerald-200/12 text-emerald-50",
+    error: "border-amber-200/24 bg-amber-200/12 text-amber-50",
+    wait: "border-white/[0.12] bg-white/[0.06] text-white/[0.68]",
+    off: "border-white/[0.08] bg-black/[0.08] text-white/[0.42]",
+  };
+  const text = {
+    ok: language === "en" ? "ok" : "ok",
+    error: language === "en" ? "check" : "sjekk",
+    wait: "...",
+    off: language === "en" ? "off" : "av",
+  };
+
+  return (
+    <div className={`min-w-0 rounded-xl border px-3 py-2 ${styles[value]}`}>
+      <p className="truncate text-[0.68rem] font-bold uppercase tracking-[0.14em] opacity-70">{label}</p>
+      <p className="mt-1 truncate text-xs font-semibold">{text[value]} · {detail}</p>
     </div>
   );
 }

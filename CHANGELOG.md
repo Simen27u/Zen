@@ -1,5 +1,13 @@
 # Changelog
 
+## DEV 1.26 - Gemini text layer and architecture map
+
+- La til nedlastbart arkitektkart i `docs/architecture-map.md` og `docs/architecture-map.mmd`.
+- La til `GET /api/status` for trygg DEV-status uten å eksponere API-nøkler.
+- La til `POST /api/zen-text` som valgfritt Gemini-lag for korte `Nå`-tekster, med lokal tekst som fallback.
+- La inn statusvisning i DEV-testpanelet for backend, vær, lokale forslag og KI-tekst.
+- Strammet Zen-tekstene slik at de blir kortere, mer konkrete og mindre KI-/wellness-aktige.
+
 ## DEV 1.25 - Backend weather identity
 
 - Rettet backend sin `User-Agent` mot MET/Yr og Nominatim, slik at produksjons-backenden ikke blir avvist som en generisk testklient.

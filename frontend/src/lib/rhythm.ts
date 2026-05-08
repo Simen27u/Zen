@@ -256,46 +256,46 @@ export function buildRhythmSections(plan: RhythmPlan, activeSectionTitle: Sectio
   const copy: Record<SupportedLanguage, Record<SectionTitle, Pick<Section, "mantra" | "prompt">>> = {
     no: {
       Morgen: {
-        mantra: freeDay ? "Start fritt." : stabilizing ? "Stabiliser først." : "Start mykt.",
-        prompt: freeDay ? "Lys og én rolig start kan holde rytmen i live." : stabilizing ? "Lys først, tempo etterpå." : "Lys, vann og litt plass før tempo.",
+        mantra: freeDay ? "Start rolig." : stabilizing ? "Ta én ting først." : "Start mykt.",
+        prompt: freeDay ? "Litt dagslys er nok å begynne med." : stabilizing ? "Lys først, tempo etterpå." : "Lys, vann og litt plass.",
       },
       Dag: {
-        mantra: freeDay ? "Ha litt kontakt med formiddagen." : "Møt formiddagen rolig.",
-        prompt: freeDay ? "Formiddagen kan være fri, med ett lite rytmeanker." : "Kontakt, fokus og ett tydelig valg er nok.",
+        mantra: freeDay ? "Hold formiddagen lett." : "Velg én ting.",
+        prompt: freeDay ? "Fri dag, men litt dagslys hjelper." : "Én tydelig start er nok.",
       },
       Ettermiddag: {
         mantra: "Dagen kan justeres.",
-        prompt: "Ettermiddagen kan være en ny liten start.",
+        prompt: "Ta en pause før neste ting.",
       },
       Kveld: {
-        mantra: "La dagen slippe taket.",
-        prompt: `Sikt mot ${plan.bedtimeLabel}, med små steg.`,
+        mantra: "Senk tempoet litt.",
+        prompt: `Gjør kvelden enklere før ${plan.bedtimeLabel}.`,
       },
       Natt: {
         mantra: "Resten kan vente.",
-        prompt: "Demp lys, press og inntrykk.",
+        prompt: "Mindre lys. Mindre inntrykk.",
       },
     },
     en: {
       Morgen: {
-        mantra: freeDay ? "Start freely." : stabilizing ? "Stabilize first." : "Start softly.",
-        prompt: freeDay ? "Light and one gentle start can keep the rhythm alive." : stabilizing ? "Light first, pace after." : "Light, water, and a little space before speed.",
+        mantra: freeDay ? "Start slowly." : stabilizing ? "One thing first." : "Start softly.",
+        prompt: freeDay ? "A little daylight is enough to begin." : stabilizing ? "Light first, pace after." : "Light, water, and a little space.",
       },
       Dag: {
-        mantra: freeDay ? "Stay in touch with the late morning." : "Meet the late morning gently.",
-        prompt: freeDay ? "A free day can stay free, with one small rhythm anchor." : "Contact, focus, and one clear choice are enough.",
+        mantra: freeDay ? "Keep late morning light." : "Choose one thing.",
+        prompt: freeDay ? "A free day can stay free. Some daylight helps." : "One clear start is enough.",
       },
       Ettermiddag: {
         mantra: "The day can adjust.",
-        prompt: "Afternoon can be a small new start.",
+        prompt: "Pause before the next thing.",
       },
       Kveld: {
-        mantra: "Let the day loosen its grip.",
-        prompt: `Aim toward ${plan.bedtimeLabel}, in small steps.`,
+        mantra: "Slow down a little.",
+        prompt: `Make the evening simpler before ${plan.bedtimeLabel}.`,
       },
       Natt: {
         mantra: "The rest can wait.",
-        prompt: "Dim light, pressure, and impressions.",
+        prompt: "Less light. Less input.",
       },
     },
   };
@@ -471,49 +471,49 @@ export function getCircadianMessage(phase: DayPhase, profile: Pick<RhythmPlan, "
   if (phase === "morning") {
     if (rhythmState === "unstable" || rhythmState === "social_jetlag") {
       return language === "en"
-        ? "Mornings can feel heavy when rhythm is shifting. Start gently, get light, and take one small step."
-        : "Morgener kan kjennes tunge når rytmen flytter på seg. Start mykt, få lys, og ta ett lite steg.";
+        ? "Mornings can feel heavy right now. Start small and get some light."
+        : "Morgenen kan kjennes tung nå. Start lite og få litt lys.";
     }
 
     if (rhythmState === "delayed") {
       return language === "en"
-        ? "The rhythm is running later right now. Early daylight helps the body find direction."
-        : "Rytmen ligger senere akkurat nå. Lys tidlig på dagen hjelper kroppen å finne retning.";
+        ? "The rhythm is running late right now. Daylight gives the day a clearer start."
+        : "Rytmen ligger sent akkurat nå. Dagslys gir dagen en tydeligere start.";
     }
 
     if (chronotype === "evening") {
       return language === "en"
-        ? "Your rhythm may naturally run a little later. Keep the morning soft and simple."
-        : "Rytmen din kan naturlig ligge litt senere. Hold morgenen myk og enkel.";
+        ? "Your rhythm may run later. Keep the morning simple."
+        : "Rytmen din kan ligge senere. Hold morgenen enkel.";
     }
 
-    return language === "en" ? "Give the body a calm start. Light, water, and one small action help." : "Gi kroppen en rolig start. Lys, vann og én liten handling hjelper.";
+    return language === "en" ? "Start calmly. Light, water, and one small thing are enough." : "Start rolig. Lys, vann og én liten ting er nok.";
   }
 
   if (phase === "day") {
     if (rhythmState === "unstable" || rhythmState === "social_jetlag") {
       return language === "en"
-        ? "When rhythm is unstable, steady energy matters more than high energy. Choose one thing and add a short pause."
-        : "Når rytmen er ustabil, er jevn energi viktigere enn mye energi. Velg én ting og legg inn en kort pause.";
+        ? "Keep the day steady. Choose one thing and add a short pause."
+        : "Hold dagen jevn. Velg én ting og legg inn en kort pause.";
     }
 
     return language === "en"
-      ? "Late morning is a good phase for contact, focus, and small choices that make the day lighter."
-      : "Formiddagen er en god fase for kontakt, fokus og små valg som gjør dagen lettere.";
+      ? "Late morning can carry one clear task."
+      : "Formiddagen kan bære én tydelig oppgave.";
   }
 
   if (phase === "afternoon") {
-    return language === "en" ? "The day is not lost. Afternoon can be a small new start, with less pressure." : "Dagen er ikke tapt. Ettermiddagen kan være en ny liten start, med lavere press.";
+    return language === "en" ? "The day is not lost. Take one small reset." : "Dagen er ikke tapt. Ta én liten reset.";
   }
 
   if (phase === "evening") {
     const weatherLine = weather && weather.temperature !== null && weather.temperature < 2 ? (language === "en" ? "Fresh air can be short and simple." : "Frisk luft kan være kort og enkel.") : "";
     return language === "en"
-      ? `Lower light and pace. Dimmer light tells the body the day can loosen its grip.${weatherLine ? ` ${weatherLine}` : ""}`
-      : `Senk lys og tempo. Lavere lys forteller kroppen at dagen kan slippe taket.${weatherLine ? ` ${weatherLine}` : ""}`;
+      ? `Lower light and pace.${weatherLine ? ` ${weatherLine}` : ""}`
+      : `Senk lys og tempo.${weatherLine ? ` ${weatherLine}` : ""}`;
   }
 
-  return language === "en" ? "Now the body needs darkness and calm. Keep it simple, dark, and without expectation." : "Nå trenger kroppen mørke og ro. Hold det enkelt, mørkt og uten forventning.";
+  return language === "en" ? "Keep it dark and simple now." : "Hold det mørkt og enkelt nå.";
 }
 
 export function getCurrentRhythmPhase(date: Date, _plan?: RhythmPlan, _dayType?: DayType): SectionTitle {
@@ -977,24 +977,24 @@ function buildFeedback(
   rhythmState: RhythmState
 ) {
   if (rhythmState === "unstable" || rhythmState === "social_jetlag") {
-    return "La oss stabilisere først. Rytmen er ikke ødelagt; den trenger bare færre hopp og et mildt morgenanker.";
+    return "Vi stabiliserer først. Rytmen er ikke ødelagt; den trenger færre hopp.";
   }
 
   if (isCircadianDrifted) {
     return desiredWakeWasClamped
-      ? "Rytmen ligger utenfor biologisk dag/natt. Zen bruker dagslys og et mildt morgenanker som retning, ikke som en hard regel."
-      : "Rytmen ligger langt ute av sync. Zen speiler ikke det som en normal dag, men viser en myk vei tilbake mot ønsket morgen.";
+      ? "Rytmen ligger langt ute akkurat nå. Dagslys blir retning, ikke en hard regel."
+      : "Rytmen ligger ute av takt akkurat nå. Zen viser små steg tilbake mot morgenen du ønsker.";
   }
 
   if (distance <= 15) {
-    return "Rytmen din er allerede nær ønsket start. Nå handler det mest om å holde den myk og stabil.";
+    return "Rytmen er nær ønsket start. Hold den enkel og ganske lik fra dag til dag.";
   }
 
   if (direction === "earlier") {
-    return "Vi flytter rytmen litt tidligere, uten brå rykk eller krav om perfekt kveld.";
+    return "Vi flytter rytmen litt tidligere, uten store hopp.";
   }
 
-  return "Vi gir kroppen litt mer rom om morgenen, og lar rytmen finne et snillere feste.";
+  return "Vi gir morgenen litt mer rom, med små justeringer.";
 }
 
 function formatDurationLabel(minutes: number) {

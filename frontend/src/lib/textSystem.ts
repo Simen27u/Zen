@@ -28,45 +28,45 @@ const greetings: Record<SupportedLanguage, Record<SectionTitle, string>> = {
 
 const periodLines: Record<SupportedLanguage, Record<SectionTitle, string[]>> = {
   no: {
-    Morgen: ["La dagen begynne lavt.", "Start med det som er nært.", "Gi morgenen litt rom.", "Finn ro før fart."],
-    Dag: ["La formiddagen være tydelig.", "Hold én ting foran deg.", "La fokuset være smalt.", "Velg det viktigste først."],
-    Ettermiddag: ["Dagen er ikke tapt.", "Et lite reset teller.", "La kroppen få komme etter.", "Litt luft er nok."],
-    Kveld: ["Dagen kan få slippe taket.", "La tempoet falle.", "Gjør kvelden smalere.", "Roligere lys, roligere rytme."],
-    Natt: ["Resten kan vente.", "Nå er det lov å stoppe.", "La kroppen få siste ord.", "Natten trenger ikke fylles."],
+    Morgen: ["Start rolig.", "Ta morgenen litt etter litt.", "Begynn med noe enkelt.", "Litt lys først."],
+    Dag: ["Velg én ting.", "Hold dagen enkel.", "Ta det viktigste først.", "Gjør starten liten."],
+    Ettermiddag: ["Dagen kan justeres.", "Ta en kort pause.", "En liten reset holder.", "Gjør neste steg mindre."],
+    Kveld: ["Senk tempoet litt.", "La resten vente litt.", "Gjør kvelden enklere.", "Demp lyset litt."],
+    Natt: ["Resten kan vente.", "Hold det enkelt nå.", "Ingen nye krav nå.", "La skjermen få mindre plass."],
   },
   en: {
-    Morgen: ["Let the day begin low.", "Start with what is close.", "Give the morning a little room.", "Find calm before pace."],
-    Dag: ["Let the late morning stay clear.", "Keep one thing in front of you.", "Let the focus stay narrow.", "Choose the most important thing first."],
-    Ettermiddag: ["The day is not lost.", "A small reset counts.", "Let the body catch up.", "A little air can be enough."],
-    Kveld: ["The day can start letting go.", "Let the pace fall.", "Make the evening smaller.", "Lower light, calmer rhythm."],
-    Natt: ["The rest can wait.", "It is allowed to stop now.", "Let the body have the last word.", "The night does not need to be filled."],
+    Morgen: ["Start slowly.", "Take the morning bit by bit.", "Begin with something simple.", "A little light first."],
+    Dag: ["Choose one thing.", "Keep the day simple.", "Start with what matters.", "Make the start small."],
+    Ettermiddag: ["The day can adjust.", "Take a short pause.", "A small reset is enough.", "Make the next step smaller."],
+    Kveld: ["Slow down a little.", "Let the rest wait a bit.", "Make the evening simpler.", "Lower the light a little."],
+    Natt: ["The rest can wait.", "Keep it simple now.", "No new demands now.", "Let the screen take less space."],
   },
 };
 
 const weatherLines: Record<SupportedLanguage, Record<WeatherMood, string[]>> = {
   no: {
-    clear: ["Klarvær gir litt mer luft.", "Lyset gjør dagen tydeligere.", "Ute er det åpent og klart."],
-    partly: ["Lyset slipper rolig gjennom.", "Skyene åpner dagen litt.", "Været ligger mykt mellom lys og skygge."],
-    cloudy: ["Skyene demper dagen.", "Været har en lavere tone.", "Himmelen legger et rolig lokk over alt."],
-    fog: ["Horisonten kan få være uklar.", "Det nære er nok akkurat nå.", "Tåken gjør verden mindre."],
-    rain: ["Regnet setter tempoet litt ned.", "Været inviterer til lavere skuldre.", "Regnet gir dagen en rolig puls."],
-    heavyRain: ["Regnet tar plass, så du kan gjøre mindre.", "Været ber om færre ting.", "Hold rytmen lav."],
-    snow: ["Snøen gjør verden stillere.", "Alt får en mykere kant.", "La tempoet falle med snøen."],
-    sleet: ["Været skifter, men du trenger ikke.", "Hold rytmen praktisk og enkel.", "Gjør dagen litt smalere."],
-    storm: ["Ro er et godt svar.", "Når været er høyt, kan du være lavere.", "Færre kanter er nok."],
-    quiet: ["Været ligger stille i bakgrunnen.", "Dagen kan få sin egen rytme.", "Det enkle er nok."],
+    clear: ["Det er klart ute.", "Lyset er tydelig i dag.", "Ute er det lett å få dagslys."],
+    partly: ["Lyset slipper gjennom.", "Det er litt lys mellom skyene.", "Været er rolig nok."],
+    cloudy: ["Det er overskyet ute.", "Dagen er litt dempet.", "Selv grått lys hjelper."],
+    fog: ["Det er tåkete ute.", "Sikten er kortere i dag.", "Hold dagen nær og enkel."],
+    rain: ["Det regner ute.", "Regnet senker tempoet litt.", "En rolig dag teller også."],
+    heavyRain: ["Det regner mye ute.", "Været tar litt plass i dag.", "Hold planen liten."],
+    snow: ["Det snør ute.", "Snøen gjør dagen roligere.", "Gjør starten enkel."],
+    sleet: ["Det er sludd ute.", "Været er litt skiftende.", "Hold det praktisk i dag."],
+    storm: ["Været er urolig ute.", "Gjør mindre hvis du trenger det.", "Hold dagen enkel."],
+    quiet: ["Været ligger rolig.", "Dagen kan få være enkel.", "Det enkle holder."],
   },
   en: {
-    clear: ["Clear weather gives the day more air.", "The light makes the day easier to read.", "Outside feels open and clear."],
-    partly: ["Light comes through softly.", "The clouds open the day a little.", "The weather rests between light and shade."],
-    cloudy: ["Clouds soften the day.", "The weather has a lower tone.", "The sky makes everything a little quieter."],
-    fog: ["The horizon can stay unclear.", "What is close is enough right now.", "The fog makes the world smaller."],
-    rain: ["The rain lowers the tempo a little.", "The weather invites lower shoulders.", "Rain gives the day a quiet pulse."],
-    heavyRain: ["The rain takes space, so you can do less.", "The weather asks for fewer things.", "Keep the rhythm low."],
-    snow: ["Snow makes the world quieter.", "Everything gets a softer edge.", "Let the pace fall with the snow."],
-    sleet: ["The weather shifts, but you do not need to.", "Keep the rhythm practical and simple.", "Make the day a little narrower."],
-    storm: ["Calm is a good answer.", "When the weather is loud, you can stay lower.", "Fewer edges are enough."],
-    quiet: ["The weather rests in the background.", "The day can find its own rhythm.", "The simple thing is enough."],
+    clear: ["It is clear outside.", "The light is easy to find today.", "There is good daylight outside."],
+    partly: ["Some light is coming through.", "There is light between the clouds.", "The weather is calm enough."],
+    cloudy: ["It is cloudy outside.", "The day is a little muted.", "Even grey light helps."],
+    fog: ["It is foggy outside.", "Visibility is shorter today.", "Keep the day close and simple."],
+    rain: ["It is raining outside.", "The rain lowers the pace a little.", "A quiet day still counts."],
+    heavyRain: ["It is raining hard outside.", "The weather takes some space today.", "Keep the plan small."],
+    snow: ["It is snowing outside.", "The snow makes the day quieter.", "Make the start simple."],
+    sleet: ["It is sleeting outside.", "The weather is a bit mixed.", "Keep it practical today."],
+    storm: ["The weather is unsettled outside.", "Do less if you need to.", "Keep the day simple."],
+    quiet: ["The weather is quiet.", "The day can stay simple.", "Simple is enough."],
   },
 };
 
@@ -76,12 +76,12 @@ export function getGreeting(sectionTitle: SectionTitle, language: SupportedLangu
 
 export function buildAmbientLead(sectionTitle: SectionTitle, weather: WeatherViewModel, isLoadingWeather: boolean, language: SupportedLanguage = "no") {
   if (isLoadingWeather) {
-    return language === "en" ? "One moment. Zen is bringing in the weather and rhythm." : "Øyeblikk. Rytmen og været hentes inn.";
+    return language === "en" ? "One moment. Zen is fetching weather." : "Et øyeblikk. Zen henter været.";
   }
 
   const context = buildTextContext(sectionTitle, weather, language);
   const weatherLine = selectText(weatherLines[language][context.mood], context, weather.vibe);
-  const periodLine = selectText(periodLines[language][sectionTitle], context, language === "en" ? "Let the day find its rhythm." : "La dagen få sin rytme.");
+  const periodLine = selectText(periodLines[language][sectionTitle], context, language === "en" ? "Keep it simple." : "Hold det enkelt.");
 
   return `${weatherLine} ${periodLine}`;
 }

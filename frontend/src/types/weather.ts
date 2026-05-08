@@ -149,6 +149,44 @@ export type LocalSuggestionsApiResponse = {
   suggestions: LocalOpportunity[];
 };
 
+export type BackendStatusResponse = {
+  ok: boolean;
+  generatedAt: string;
+  services: {
+    weather: {
+      configured: boolean;
+      upstreams: string[];
+    };
+    gemini: {
+      configured: boolean;
+      model: string;
+    };
+    holidays: {
+      configured: boolean;
+      fallback: string;
+    };
+  };
+};
+
+export type ZenTextApiRequest = {
+  phase: DayPhase;
+  dayType: DayType;
+  language: SupportedLanguage;
+  date: string;
+  weatherSymbol?: string;
+  temperature?: number | null;
+  rhythmState: RhythmState;
+  lifeAreas: LifeArea[];
+  baseMessage: string;
+};
+
+export type ZenTextApiResponse = {
+  text: string;
+  source: "gemini" | "local";
+  generatedAt: string;
+  cached?: boolean;
+};
+
 export type Palette = {
   background: string;
   glowA: string;

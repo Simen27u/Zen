@@ -1,0 +1,75 @@
+flowchart TD
+  User["Bruker"] --> Browser["Nettleser"]
+
+  Browser --> LocalFrontend["Lokal frontend<br/>http://localhost:3000"]
+  Browser --> PagesFrontend["GitHub Pages<br/>Public DEV preview<br/>https://simen27u.github.io/Zen"]
+
+  LocalFrontend --> LocalStorageLocal["localStorage lokalt<br/>settings, rytmeprofil, små steg, testvalg"]
+  PagesFrontend --> LocalStoragePages["localStorage i Pages-domenet<br/>egen kopi av settings og testvalg"]
+
+  LocalFrontend --> LocalBackend["Lokal backend<br/>http://localhost:3001"]
+  PagesFrontend --> RenderBackend["Render backend<br/>https://zen-xyvt.onrender.com"]
+
+  subgraph Frontend["React / TypeScript / Vite"]
+    ZenUI["ZenDayUI.tsx<br/>hovedflate, paneler, testverktøy"]
+    Ambient["AmbientBackdrop.tsx<br/>værbakgrunn, skyer, tåke, regn, natt"]
+    TextSystem["textSystem.ts<br/>lokal standardtekst og fallback"]
+    RhythmCore["rhythm.ts<br/>dagsfaser, rytmeplan, ankere, små steg"]
+    SettingsCore["settings.ts<br/>språk, livsområder, arbeidsdager"]
+    WeatherScene["weatherScene.ts<br/>symbolCode til scene"]
+    WeatherPalette["weatherPalette.ts<br/>farger etter vær og tid"]
+    WeatherUtils["weatherUtils.ts<br/>dato, klokke, værnavn"]
+    LocalClient["localSuggestions.ts<br/>POST /api/local-suggestions"]
+    AiClient["aiTextClient.ts<br/>status og POST /api/zen-text"]
+  end
+
+  LocalFrontend --> Frontend
+  PagesFrontend --> Frontend
+
+  subgraph Backend["Node / Express"]
+    Health["GET /api/health<br/>sjekker bare at serveren lever"]
+    Status["GET /api/status<br/>trygg DEV-status uten nøkler"]
+    Weather["GET /api/weather<br/>vær + stedsnavn"]
+    Holidays["GET /api/holidays<br/>helligdager"]
+    LocalIdeas["POST /api/local-suggestions<br/>Gemini hvis mulig, ellers fallback"]
+    ZenText["POST /api/zen-text<br/>rolig tekstvariant, lokal fallback"]
+    Cors["CORS<br/>localhost + GitHub Pages"]
+    MemoryCache["Minne-cache<br/>vær, helligdager, lokale forslag, zen-text"]
+  end
+
+  LocalBackend --> Backend
+  RenderBackend --> Backend
+
+  Weather --> Met["MET/Yr<br/>værdata<br/>krever ordentlig User-Agent"]
+  Weather --> Nominatim["OpenStreetMap / Nominatim<br/>stedsnavn<br/>krever ordentlig User-Agent"]
+
+  Holidays --> ApiNinjas["API Ninjas Holidays<br/>hvis API_NINJAS_KEY finnes"]
+  Holidays --> HolidayFallback["Lokal norsk fallback<br/>hvis API mangler eller feiler"]
+
+  LocalIdeas --> GeminiIdeas["Gemini API<br/>hvis GEMINI_API_KEY finnes"]
+  LocalIdeas --> IdeasFallback["Regelstyrt lokal fallback<br/>hvis Gemini mangler eller feiler"]
+
+  ZenText --> GeminiText["Gemini API<br/>tekstpolering, maks kort tekst"]
+  ZenText --> TextFallback["textSystem.ts baseMessage<br/>alltid brukbar fallback"]
+
+  subgraph Deploy["Deploy og miljø"]
+    GitHub["GitHub repo<br/>main + dev-tags"]
+    Actions["GitHub Actions<br/>bygger frontend"]
+    RenderDeploy["Render deploy<br/>kjører backend"]
+    Env["Miljøvariabler<br/>GEMINI_API_KEY<br/>API_NINJAS_KEY<br/>ZEN_USER_AGENT<br/>GEMINI_MODEL"]
+  end
+
+  GitHub --> Actions --> PagesFrontend
+  GitHub --> RenderDeploy --> RenderBackend
+  Env --> RenderBackend
+
+  subgraph Principle["Produktprinsipp"]
+    Rules["Regelstyrt kjerne<br/>tid, vær, rytme, språk, dagtype"]
+    AiLayer["KI som hjelpelag<br/>formulering og variasjon"]
+    Fallback["Fallback først<br/>Zen skal virke uten KI"]
+  end
+
+  Rules --> TextSystem
+  Rules --> RhythmCore
+  AiLayer --> AiClient
+  Fallback --> TextSystem

@@ -13,9 +13,11 @@ const USER_AGENT =
 const weatherCache = new Map();
 const holidayCache = new Map();
 const localSuggestionsCache = new Map();
+const zenTextCache = new Map();
 const CACHE_MS = 10 * 60 * 1000;
 const HOLIDAY_CACHE_MS = 24 * 60 * 60 * 1000;
 const LOCAL_SUGGESTIONS_CACHE_MS = 60 * 60 * 1000;
+const ZEN_TEXT_CACHE_MS = 24 * 60 * 60 * 1000;
 
 const allowedOrigins = new Set(["http://localhost:3000", "https://simen27u.github.io"]);
 
@@ -37,6 +39,27 @@ app.use(express.json({ limit: "32kb" }));
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
+});
+
+app.get("/api/status", (_req, res) => {
+  res.json({
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    services: {
+      weather: {
+        configured: true,
+        upstreams: ["met", "nominatim"],
+      },
+      gemini: {
+        configured: Boolean(GEMINI_API_KEY),
+        model: GEMINI_MODEL,
+      },
+      holidays: {
+        configured: Boolean(API_NINJAS_KEY),
+        fallback: "NO",
+      },
+    },
+  });
 });
 
 app.get("/api/weather", async (req, res) => {
@@ -156,9 +179,113 @@ app.post("/api/local-suggestions", async (req, res) => {
   res.json(payload);
 });
 
+app.post("/api/zen-text", async (req, res) => {
+  const context = normalizeZenTextRequest(req.body);
+  if (!context) {
+    res.status(400).json({ error: "Ugyldig kontekst for Zen-tekst" });
+    return;
+  }
+
+  const cacheKey = buildZenTextCacheKey(context);
+  const cached = zenTextCache.get(cacheKey);
+  if (cached && Date.now() - cached.createdAt < ZEN_TEXT_CACHE_MS) {
+    res.json({ ...cached.payload, cached: true });
+    return;
+  }
+
+  const payload = await loadZenTextPayload(context);
+  zenTextCache.set(cacheKey, {
+    createdAt: Date.now(),
+    payload,
+  });
+  res.json(payload);
+});
+
 app.listen(PORT, () => {
   console.log(`Zen backend kjører på http://localhost:${PORT}`);
 });
+
+async function loadZenTextPayload(context) {
+  if (GEMINI_API_KEY) {
+    try {
+      const text = await generateGeminiZenText(context);
+      if (text) {
+        return {
+          text,
+          source: "gemini",
+          generatedAt: new Date().toISOString(),
+        };
+      }
+    } catch (error) {
+      console.warn("Gemini zen-text fallback:", error instanceof Error ? error.message : error);
+    }
+  }
+
+  return {
+    text: context.baseMessage,
+    source: "local",
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+async function generateGeminiZenText(context) {
+  const prompt = buildZenTextPrompt(context);
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-goog-api-key": GEMINI_API_KEY,
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.35,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Gemini svarte med ${response.status}`);
+  }
+
+  const data = await response.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map((part) => part?.text || "").join(" ") || "";
+  return cleanZenText(text);
+}
+
+function buildZenTextPrompt(context) {
+  const languageName = context.language === "en" ? "English" : "Norwegian";
+
+  return `
+Rewrite this Zen message in ${languageName}.
+
+Context:
+- phase: ${context.phase}
+- day type: ${context.dayType}
+- weather: ${context.weatherSymbol || "unknown"}
+- temperature: ${context.temperature ?? "unknown"}
+- rhythm state: ${context.rhythmState}
+- life areas: ${context.lifeAreas.join(", ") || "energy, sleep"}
+
+Base message:
+${context.baseMessage}
+
+Rules:
+- Return only the rewritten text.
+- Max 2 short sentences.
+- Sound like a calm human, not a wellness app.
+- Use plain, everyday words.
+- Do not be poetic, grand, dramatic, motivational, clinical, or chatbot-like.
+- Do not use emojis, markdown, lists, quotes, or labels.
+- Do not say "du må", "du burde", "you must", or "you should".
+- Do not claim progress, patterns, health effects, or personal insight.
+- Do not add advice that is not already implied by the base message.
+`.trim();
+}
 
 async function loadLocalSuggestionsPayload(context) {
   if (GEMINI_API_KEY) {
@@ -285,6 +412,26 @@ function normalizeLocalSuggestionsRequest(body) {
   };
 }
 
+function normalizeZenTextRequest(body) {
+  const phase = normalizeDayPhase(body?.phase);
+  const dayType = normalizeDayTypeValue(body?.dayType);
+  const language = body?.language === "en" ? "en" : "no";
+  const baseMessage = sanitizeShortText(body?.baseMessage, 260);
+  if (!phase || !dayType || !baseMessage) return null;
+
+  return {
+    phase,
+    dayType,
+    language,
+    date: typeof body?.date === "string" ? body.date.slice(0, 10) : toIsoDate(new Date()),
+    weatherSymbol: sanitizeShortText(body?.weatherSymbol, 40),
+    temperature: Number.isFinite(body?.temperature) ? Math.round(body.temperature) : null,
+    rhythmState: normalizeRhythmState(body?.rhythmState),
+    lifeAreas: normalizeLifeAreas(body?.lifeAreas),
+    baseMessage,
+  };
+}
+
 function buildLocalSuggestionsCacheKey(context) {
   return [
     context.date,
@@ -297,6 +444,10 @@ function buildLocalSuggestionsCacheKey(context) {
     context.temperature ?? "",
     context.lifeAreas.join("."),
   ].join(":");
+}
+
+function buildZenTextCacheKey(context) {
+  return [context.date, context.language, context.phase, context.dayType].join(":");
 }
 
 function parseJsonObject(text) {
@@ -456,12 +607,53 @@ function sanitizeShortText(value, maxLength) {
   return value.replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
+function cleanZenText(value) {
+  const text = String(value || "")
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/^["'“”«»]+|["'“”«»]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return isUsableZenText(text) ? text : "";
+}
+
+function isUsableZenText(text) {
+  if (!text || text.length > 190) return false;
+  if (/[\r\n*#{}[\]]/.test(text)) return false;
+
+  const lower = text.toLowerCase();
+  const forbidden = [
+    "du må",
+    "du burde",
+    "you must",
+    "you should",
+    "optimaliser",
+    "optimize",
+    "produktivit",
+    "productiv",
+    "forbedret",
+    "improved",
+    "jeg ser",
+    "i can see",
+    "diagnose",
+    "mindful journey",
+    "embrace",
+  ];
+
+  return !forbidden.some((word) => lower.includes(word));
+}
+
 function normalizeDayPhase(value) {
   return ["morning", "day", "afternoon", "evening", "night"].includes(value) ? value : "";
 }
 
 function normalizeDayTypeValue(value) {
   return ["weekday", "weekend", "free_day"].includes(value) ? value : "";
+}
+
+function normalizeRhythmState(value) {
+  const states = ["stable", "slightly_shifted", "delayed", "unstable", "social_jetlag", "unknown"];
+  return states.includes(value) ? value : "unknown";
 }
 
 function normalizeLifeAreas(value) {
@@ -790,18 +982,19 @@ async function resolveJsonLocationInfo(lat, lon) {
 function buildVibe(symbolCode, temperature) {
   const code = symbolCode.toLowerCase();
 
-  if (code.includes("thunder")) return "Været ber om litt mer ro og litt færre kanter.";
-  if (code.includes("heavyrain")) return "Regnet fyller rommet utenfor, og tempoet kan få falle litt.";
-  if (code.includes("rain")) return "Været inviterer til å senke skuldrene.";
-  if (code.includes("snow")) return "Snøen demper verden og gjør dagen mykere.";
-  if (code.includes("sleet")) return "Luften er rå og skiftende, så hold rytmen enkel.";
-  if (code.includes("fog")) return "Tåken gjør horisonten mindre. Det er nok å se neste steg.";
-  if (code.includes("cloudy")) return "Skyene legger et rolig lokk over dagen.";
-  if (code.includes("fair") || code.includes("partlycloudy")) return "Lyset får slippe gjennom i små, rolige glimt.";
-  if (code.includes("clearsky") && temperature !== null && temperature <= 0) return "Klar luft og lave grader gir dagen en stille kant.";
-  if (code.includes("clearsky")) return "Klarvær gir dagen mer rom og et lettere drag.";
+  if (code.includes("thunder")) return "Hold dagen enkel hvis du kan.";
+  if (code.includes("heavyrain")) return "En liten plan holder i dag.";
+  if (code.includes("rain")) return "Det er fint å senke tempoet litt.";
+  if (code.includes("snow")) return "Ta starten rolig.";
+  if (code.includes("sleet")) return "Hold det praktisk og enkelt.";
+  if (code.includes("fog")) return "Gjør det nære først.";
+  if (code.includes("_night")) return "Hold natten enkel.";
+  if (code.includes("cloudy")) return "Grått dagslys teller også.";
+  if (code.includes("fair") || code.includes("partlycloudy")) return "Litt dagslys er lett å finne.";
+  if (code.includes("clearsky") && temperature !== null && temperature <= 0) return "Kaldt, klart vær. Start enkelt.";
+  if (code.includes("clearsky")) return "Det er klart ute.";
 
-  return "Været ligger stille i bakgrunnen og lar dagen få sin rytme.";
+  return "Hold dagen enkel.";
 }
 
 function buildWeatherText(temperature, symbolCode, vibe) {
