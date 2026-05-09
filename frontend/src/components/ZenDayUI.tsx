@@ -1827,6 +1827,25 @@ function DevTestPanel({
     aiText: language === "en" ? "AI text" : "KI-tekst",
     testHoliday: language === "en" ? "Test free day" : "Testfridag",
   };
+  const geminiMissing = Boolean(backendStatus && !backendStatus.services.gemini.configured);
+  const aiTextStatusValue = !aiTextEnabled
+    ? "off"
+    : geminiMissing
+      ? "error"
+      : zenTextError
+        ? "error"
+        : zenText
+          ? "ok"
+          : zenTextLoading
+            ? "wait"
+            : "wait";
+  const aiTextStatusDetail = !aiTextEnabled
+    ? "off"
+    : geminiMissing
+      ? language === "en"
+        ? "backend key missing"
+        : "mangler backend-nøkkel"
+      : zenText?.source || zenTextError || "...";
 
   if (!isOpen) {
     return (
@@ -1876,8 +1895,8 @@ function DevTestPanel({
           />
           <StatusPill
             label={copy.aiText}
-            value={!aiTextEnabled ? "off" : zenTextError ? "error" : zenText ? "ok" : zenTextLoading ? "wait" : "wait"}
-            detail={!aiTextEnabled ? "off" : zenText?.source || zenTextError || "..."}
+            value={aiTextStatusValue}
+            detail={aiTextStatusDetail}
             language={language}
           />
         </div>

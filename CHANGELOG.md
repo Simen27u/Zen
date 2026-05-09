@@ -1,5 +1,15 @@
 # Changelog
 
+## DEV 1.29 - Plain language Gemini wording
+
+- Strammet språkprofilen for Zen med inspirasjon fra Udir: kortere, mer konkret og mindre KI-/wellness-aktig tekst.
+- Oppdaterte Gemini-prompten for `Nå`-tekst slik at den skriver mer som en rolig tjeneste og mindre som en chatbot.
+- Utvidet cache-nøkkelen for KI-tekst, slik at nye prompt- og base-tekstendringer ikke skjules av gamle svar.
+- Strammet lokale Gemini-forslag slik at de ikke skal finne opp konkrete steder eller arrangementer.
+- Gjorde KI-status tydeligere i DEV-testpanelet når backend mangler `GEMINI_API_KEY`.
+- La til lokal `.env`-lasting i backend, slik at `backend/.env` eller `backend/.env.local` kan brukes uten å legge nøkler i Git.
+- La til `backend/.env.example` som trygg mal for lokale API-innstillinger.
+
 ## DEV 1.28 - Architecture map export fix
 
 - La til en egen HTML-eksportmodus for arkitekturkartet, slik at PNG-versjonen ikke avhenger av nettleserens SVG-preview.

@@ -50,7 +50,7 @@ export const RHYTHM_FEELING_OPTIONS: ReadonlyArray<{
   {
     value: "tired_all_day",
     title: "Jeg er trøtt mye av tiden",
-    description: "Det er vanskelig å lese kroppen akkurat nå.",
+    description: "Det er vanskelig å vite hva som hjelper akkurat nå.",
   },
   {
     value: "unstable",
@@ -256,16 +256,16 @@ export function buildRhythmSections(plan: RhythmPlan, activeSectionTitle: Sectio
   const copy: Record<SupportedLanguage, Record<SectionTitle, Pick<Section, "mantra" | "prompt">>> = {
     no: {
       Morgen: {
-        mantra: freeDay ? "Start rolig." : stabilizing ? "Ta én ting først." : "Start mykt.",
-        prompt: freeDay ? "Litt dagslys er nok å begynne med." : stabilizing ? "Lys først, tempo etterpå." : "Lys, vann og litt plass.",
+        mantra: freeDay ? "Start rolig." : stabilizing ? "Ta én ting først." : "Start rolig.",
+        prompt: freeDay ? "Litt dagslys holder til å begynne med." : stabilizing ? "Få litt lys før du øker tempoet." : "Lys, vann og en enkel start.",
       },
       Dag: {
-        mantra: freeDay ? "Hold formiddagen lett." : "Velg én ting.",
-        prompt: freeDay ? "Fri dag, men litt dagslys hjelper." : "Én tydelig start er nok.",
+        mantra: freeDay ? "Hold formiddagen enkel." : "Velg én ting.",
+        prompt: freeDay ? "Du kan ha fri og fortsatt få litt dagslys." : "Én ting er nok å starte med.",
       },
       Ettermiddag: {
-        mantra: "Dagen kan justeres.",
-        prompt: "Ta en pause før neste ting.",
+        mantra: "Du kan justere litt.",
+        prompt: "Ta en pause før du går videre.",
       },
       Kveld: {
         mantra: "Senk tempoet litt.",
@@ -273,21 +273,21 @@ export function buildRhythmSections(plan: RhythmPlan, activeSectionTitle: Sectio
       },
       Natt: {
         mantra: "Resten kan vente.",
-        prompt: "Mindre lys. Mindre inntrykk.",
+        prompt: "Mindre lys og færre inntrykk.",
       },
     },
     en: {
       Morgen: {
-        mantra: freeDay ? "Start slowly." : stabilizing ? "One thing first." : "Start softly.",
-        prompt: freeDay ? "A little daylight is enough to begin." : stabilizing ? "Light first, pace after." : "Light, water, and a little space.",
+        mantra: freeDay ? "Start slowly." : stabilizing ? "One thing first." : "Start slowly.",
+        prompt: freeDay ? "A little daylight is enough to begin." : stabilizing ? "Get some light before the pace goes up." : "Light, water, and a simple start.",
       },
       Dag: {
-        mantra: freeDay ? "Keep late morning light." : "Choose one thing.",
-        prompt: freeDay ? "A free day can stay free. Some daylight helps." : "One clear start is enough.",
+        mantra: freeDay ? "Keep late morning simple." : "Choose one thing.",
+        prompt: freeDay ? "You can keep the day free and still get some daylight." : "One thing is enough to start with.",
       },
       Ettermiddag: {
-        mantra: "The day can adjust.",
-        prompt: "Pause before the next thing.",
+        mantra: "You can adjust a little.",
+        prompt: "Pause before you move on.",
       },
       Kveld: {
         mantra: "Slow down a little.",
@@ -295,7 +295,7 @@ export function buildRhythmSections(plan: RhythmPlan, activeSectionTitle: Sectio
       },
       Natt: {
         mantra: "The rest can wait.",
-        prompt: "Less light. Less input.",
+        prompt: "Less light and less input.",
       },
     },
   };
@@ -395,7 +395,7 @@ export function buildRhythmAnchors(plan: RhythmPlan, activeSectionTitle: Section
       id: "energy-anchor",
       phase: activeSectionTitle === "Ettermiddag" ? "Ettermiddag" : "Dag",
       title: language === "en" ? (activeSectionTitle === "Ettermiddag" ? "Reset anchor" : "Late-morning anchor") : activeSectionTitle === "Ettermiddag" ? "Resetanker" : "Formiddagsanker",
-      text: language === "en" ? "Steady energy is better than pushing through everything at once." : "Jevn energi er bedre enn å presse gjennom alt på én gang.",
+      text: language === "en" ? "It helps to take a little at a time." : "Det hjelper å ta litt om gangen.",
       action:
         language === "en"
           ? activeSectionTitle === "Ettermiddag"
@@ -409,15 +409,15 @@ export function buildRhythmAnchors(plan: RhythmPlan, activeSectionTitle: Section
       id: "dim-anchor",
       phase: "Kveld",
       title: language === "en" ? "Lower light" : "Lys ned",
-      text: language === "en" ? "Lower light makes the transition toward sleep easier for the body." : "Lavere lys gjør overgangen til søvn lettere for kroppen.",
+      text: language === "en" ? "Lower light makes it easier to slow down before sleep." : "Lavere lys gjør det lettere å roe ned før søvn.",
       action: language === "en" ? `Dim one light before ${formatClockMinutes(plan.suggestedBedtimeMinutes - 60)}.` : `Demp ett lys før ${formatClockMinutes(plan.suggestedBedtimeMinutes - 60)}.`,
     },
     {
       id: "dark-anchor",
       phase: "Natt",
       title: language === "en" ? "Dark anchor" : "Mørkeanker",
-      text: language === "en" ? "Darkness protects rhythm when the body is trying to land." : "Mørke beskytter rytmen når kroppen prøver å lande.",
-      action: language === "en" ? "Keep the screen low, or put it away for a few minutes." : "Hold skjermen lav, eller legg den bort i noen minutter.",
+      text: language === "en" ? "Darkness and less screen light make the night easier." : "Mørke og mindre skjermlys gjør natten enklere.",
+      action: language === "en" ? "Lower the screen light, or put it away for a few minutes." : "Skru ned lyset på skjermen, eller legg den bort i noen minutter.",
     },
   ];
 
@@ -478,7 +478,7 @@ export function getCircadianMessage(phase: DayPhase, profile: Pick<RhythmPlan, "
     if (rhythmState === "delayed") {
       return language === "en"
         ? "The rhythm is running late right now. Daylight gives the day a clearer start."
-        : "Rytmen ligger sent akkurat nå. Dagslys gir dagen en tydeligere start.";
+        : "Rytmen ligger sent akkurat nå. Dagslys kan gi dagen en enklere start.";
     }
 
     if (chronotype === "evening") {
@@ -499,7 +499,7 @@ export function getCircadianMessage(phase: DayPhase, profile: Pick<RhythmPlan, "
 
     return language === "en"
       ? "Late morning can carry one clear task."
-      : "Formiddagen kan bære én tydelig oppgave.";
+      : "Formiddagen passer godt for én liten oppgave.";
   }
 
   if (phase === "afternoon") {
@@ -567,7 +567,7 @@ export function getRhythmCalendarContext(
     plan && plan.socialJetlagMinutes >= SOCIAL_JETLAG_THRESHOLD_MINUTES
       ? language === "en"
         ? `Weekdays and weekends differ by about ${plan.socialJetlagLabel}. That is common, but it can confuse the body a little. Small anchors help over time.`
-        : `Ukedag og helg skiller med ${plan.socialJetlagLabel}. Det er vanlig, men kan forvirre kroppen litt. Små ankre hjelper over tid.`
+        : `Ukedag og helg skiller med ${plan.socialJetlagLabel}. Det er vanlig, men kan gjøre rytmen mer urolig. Ett lite holdepunkt hjelper over tid.`
       : undefined;
   const localHolidayName = options.holidayAwarenessEnabled === false ? "" : getNorwegianHolidayName(date);
   const holidayName = options.holiday?.name || localHolidayName;
@@ -598,7 +598,7 @@ export function getRhythmCalendarContext(
         socialJetlagDetail && language === "en"
           ? "Try keeping one soft morning anchor on free days too."
           : socialJetlagDetail
-            ? "Prøv å beholde ett mykt morgenanker også på fridager."
+            ? "Prøv å beholde ett enkelt morgenpunkt også på fridager."
             : undefined,
       tone: "weekend",
     };
@@ -772,7 +772,7 @@ function getSystemFocus(rhythmState: RhythmState, socialJetlagMinutes: number, d
   if (rhythmState === "unstable" || rhythmState === "social_jetlag") {
     return {
       label: "Stabiliser først",
-      text: "Zen prioriterer jevnere ankre før appen prøver å tolke kronotype.",
+      text: "Zen ser først etter jevnere tidspunkt før appen tolker mønsteret.",
     };
   }
 
@@ -884,7 +884,7 @@ function getLifeAreaMicroStep(phase: DayPhase, selectedLifeAreas: LifeArea[], da
       energy: "Ta en kort pause før du går videre.",
       mood: "Gjør én ting liten nok til å starte.",
       focus: freeDay ? "La dagen ha ett lett holdepunkt." : "Velg én oppgave og lukk resten litt.",
-      training: "Gå en kort runde hvis kroppen vil.",
+      training: "Gå en kort runde hvis det passer.",
       food: "Spis noe enkelt før energien faller.",
       home: "Rydd én liten flate.",
       social: "Svar én person uten å gjøre det stort.",
@@ -909,17 +909,17 @@ function getLifeAreaMicroStep(phase: DayPhase, selectedLifeAreas: LifeArea[], da
       training: "Velg rolig strekk fremfor høy intensitet.",
       food: "Gjør mat eller kjøkken enkelt nok.",
       home: "Legg klart én ting til i morgen.",
-      social: "Avslutt samtaler mykt hvis du trenger ro.",
+      social: "Avslutt samtaler rolig hvis du trenger ro.",
       reflection: "Skriv ned én tanke som kan vente.",
-      sleep: "Demp lyset og gjør skjermen mindre viktig.",
+      sleep: "Demp lyset og legg bort skjermen litt.",
     },
     night: {
       energy: "Ikke bruk natten på å finne ny fart.",
       mood: "Du trenger ikke løse livet nå.",
       focus: "La neste oppgave vente til dagslys.",
-      training: "Hold kroppen rolig og mørket enkelt.",
+      training: "Hold det rolig og mørkt.",
       food: "Gjør minst mulig styr ut av natten.",
-      home: "La rotet vente hvis kroppen trenger hvile.",
+      home: "La rotet vente hvis du trenger hvile.",
       social: "La meldinger vente hvis de ikke haster.",
       reflection: "Legg én tanke et sted utenfor hodet.",
       sleep: "Hold det mørkt, lavt og enkelt.",
@@ -930,7 +930,7 @@ function getLifeAreaMicroStep(phase: DayPhase, selectedLifeAreas: LifeArea[], da
 }
 
 function getWeatherLightHint(weather?: WeatherViewModel, language: SupportedLanguage = "no") {
-  if (!weather) return language === "en" ? "Light tells the body the day has started." : "Lys forteller kroppen at dagen har startet.";
+  if (!weather) return language === "en" ? "Light helps mark the start of the day." : "Litt lys sier at dagen er i gang.";
 
   const code = weather.symbolCode.toLowerCase();
   if (weather.temperature !== null && weather.temperature <= 0) {
@@ -942,14 +942,14 @@ function getWeatherLightHint(weather?: WeatherViewModel, language: SupportedLang
   }
 
   if (code.includes("cloudy") || code.includes("fog")) {
-    return language === "en" ? "Even grey daylight helps the body understand day." : "Selv grått dagslys hjelper kroppen å forstå dag.";
+    return language === "en" ? "Even grey daylight helps." : "Grått dagslys hjelper også.";
   }
 
   if (code.includes("rain") || code.includes("sleet") || code.includes("snow")) {
-    return language === "en" ? "A calm day still counts; a bright window is better than nothing." : "En rolig dag teller fortsatt; et lyst vindu er bedre enn ingenting.";
+    return language === "en" ? "A bright window is better than nothing." : "Et lyst vindu er bedre enn ingenting.";
   }
 
-  return language === "en" ? "Light tells the body the day has started." : "Lys forteller kroppen at dagen har startet.";
+  return language === "en" ? "Light helps mark the start of the day." : "Litt lys sier at dagen er i gang.";
 }
 
 function isChronotype(value: unknown): value is Chronotype {

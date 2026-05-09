@@ -28,33 +28,33 @@ const greetings: Record<SupportedLanguage, Record<SectionTitle, string>> = {
 
 const periodLines: Record<SupportedLanguage, Record<SectionTitle, string[]>> = {
   no: {
-    Morgen: ["Start rolig.", "Ta morgenen litt etter litt.", "Begynn med noe enkelt.", "Litt lys først."],
-    Dag: ["Velg én ting.", "Hold dagen enkel.", "Ta det viktigste først.", "Gjør starten liten."],
-    Ettermiddag: ["Dagen kan justeres.", "Ta en kort pause.", "En liten reset holder.", "Gjør neste steg mindre."],
-    Kveld: ["Senk tempoet litt.", "La resten vente litt.", "Gjør kvelden enklere.", "Demp lyset litt."],
-    Natt: ["Resten kan vente.", "Hold det enkelt nå.", "Ingen nye krav nå.", "La skjermen få mindre plass."],
+    Morgen: ["Start rolig.", "Ta én ting om gangen.", "Begynn enkelt.", "Få litt lys først."],
+    Dag: ["Velg én ting å starte med.", "Hold det enkelt.", "Ta det viktigste først.", "Gjør det litt mindre."],
+    Ettermiddag: ["Du kan justere litt nå.", "Ta en kort pause.", "Begynn litt på nytt.", "Velg et mindre neste steg."],
+    Kveld: ["Senk tempoet litt.", "La resten vente.", "Gjør kvelden enklere.", "Demp lyset litt."],
+    Natt: ["Resten kan vente.", "Hold det enkelt nå.", "Ikke legg til nye krav nå.", "Legg bort skjermen litt."],
   },
   en: {
     Morgen: ["Start slowly.", "Take the morning bit by bit.", "Begin with something simple.", "A little light first."],
-    Dag: ["Choose one thing.", "Keep the day simple.", "Start with what matters.", "Make the start small."],
-    Ettermiddag: ["The day can adjust.", "Take a short pause.", "A small reset is enough.", "Make the next step smaller."],
-    Kveld: ["Slow down a little.", "Let the rest wait a bit.", "Make the evening simpler.", "Lower the light a little."],
-    Natt: ["The rest can wait.", "Keep it simple now.", "No new demands now.", "Let the screen take less space."],
+    Dag: ["Choose one thing to start with.", "Keep it simple.", "Start with what matters.", "Make it a little smaller."],
+    Ettermiddag: ["You can adjust a little now.", "Take a short pause.", "Start again in a small way.", "Choose a smaller next step."],
+    Kveld: ["Slow down a little.", "Let the rest wait.", "Make the evening simpler.", "Lower the light a little."],
+    Natt: ["The rest can wait.", "Keep it simple now.", "Do not add new demands now.", "Put the screen away for a bit."],
   },
 };
 
 const weatherLines: Record<SupportedLanguage, Record<WeatherMood, string[]>> = {
   no: {
-    clear: ["Det er klart ute.", "Lyset er tydelig i dag.", "Ute er det lett å få dagslys."],
-    partly: ["Lyset slipper gjennom.", "Det er litt lys mellom skyene.", "Været er rolig nok."],
-    cloudy: ["Det er overskyet ute.", "Dagen er litt dempet.", "Selv grått lys hjelper."],
-    fog: ["Det er tåkete ute.", "Sikten er kortere i dag.", "Hold dagen nær og enkel."],
-    rain: ["Det regner ute.", "Regnet senker tempoet litt.", "En rolig dag teller også."],
+    clear: ["Det er klart ute.", "Det er lyst ute.", "Ute er det lett å få dagslys."],
+    partly: ["Lyset slipper gjennom.", "Det er litt lys mellom skyene.", "Været er rolig."],
+    cloudy: ["Det er overskyet ute.", "Dagen er litt dempet.", "Grått dagslys hjelper også."],
+    fog: ["Det er tåkete ute.", "Sikten er kortere i dag.", "Gjør det nærmeste først."],
+    rain: ["Det regner ute.", "Regnet gjør tempoet lavere.", "Ta en roligere start."],
     heavyRain: ["Det regner mye ute.", "Været tar litt plass i dag.", "Hold planen liten."],
     snow: ["Det snør ute.", "Snøen gjør dagen roligere.", "Gjør starten enkel."],
-    sleet: ["Det er sludd ute.", "Været er litt skiftende.", "Hold det praktisk i dag."],
+    sleet: ["Det er sludd ute.", "Været skifter litt.", "Hold det praktisk."],
     storm: ["Været er urolig ute.", "Gjør mindre hvis du trenger det.", "Hold dagen enkel."],
-    quiet: ["Været ligger rolig.", "Dagen kan få være enkel.", "Det enkle holder."],
+    quiet: ["Været er rolig.", "Dagen kan være enkel.", "Det enkle holder."],
   },
   en: {
     clear: ["It is clear outside.", "The light is easy to find today.", "There is good daylight outside."],
